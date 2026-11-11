@@ -1,0 +1,70 @@
+name: Build Android APK
+
+# Runs on every push to main (and can be started by hand from the Actions tab).
+# Wraps the game in a Capacitor Android app, builds an APK and publishes it as a release.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Create Capacitor Android project
+        run: |
+          mkdir -p app/www
+          cp index.html manifest.webmanifest *.png app/www/
+          cp -r fonts app/www/
+          cd app
+          npm init -y > /dev/null
+          npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
+          npx cap init "Last Circle" com.darkz94.lastcircle --web-dir www
+          npx cap add android
+          npx cap sync android
+
+      - name: Icons, splash, fullscreen, version
+        run: |
+          RES=app/android/app/src/main/res
+          for d in mdpi hdpi xhdpi xxhdpi xxxhdpi; do
+            cp android-icons/ic_launcher-$d.png $RES/mipmap-$d/ic_launcher.png
+            cp android-icons/ic_launcher-$d.png $RES/mipmap-$d/ic_launcher_round.png
+            rm -f $RES/mipmap-$d/ic_launcher_foreground.png
+          done
+          rm -rf $RES/mipmap-anydpi-v26
+          find $RES -name 'splash.png' -delete
+          cp android-splash.xml $RES/drawable/splash.xml
+          sed -i 's#<item name="android:background">@null</item>#<item name="android:background">@null</item>\n        <item name="android:windowFullscreen">true</item>#' $RES/values/styles.xml
+          sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"1.0.${{ github.run_number }}\"/" app/android/app/build.gradle
+
+      - name: Build APK
+        run: |
+          mkdir -p ~/.android
+          cp android-signing/debug.keystore ~/.android/debug.keystore
+          cd app/android
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+          cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/LastCircle.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: Last Circle v1.0.${{ github.run_number }}
+          body: Download **LastCircle.apk** below and open it on your Android phone to install.
+          files: LastCircle.apk
+          make_latest: true
