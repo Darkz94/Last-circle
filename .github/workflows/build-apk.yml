@@ -28,7 +28,7 @@ jobs:
       - name: Create Capacitor Android project
         run: |
           mkdir -p app/www
-          cp index.html manifest.webmanifest *.png app/www/
+          cp index.html game.html manifest.webmanifest *.png app/www/
           cp -r fonts app/www/
           cd app
           npm init -y > /dev/null
