@@ -200,7 +200,7 @@ const AU = {
   // --- sound effects (throttled so hundreds of hits don't turn into mush)
   play(name, p = 1) {
     if (!this.ctx || !this.on.sfx) return;
-    const now = this.ctx.currentTime, gap = { swing: .07, hit_red: .05, hit_blue: .05, hit_yellow: .05, hit_green: .05, boom: .06, zap: .05, freeze: .08, coin: .06, xp: .045, pop: .04, summon: .12, burn: .25 }[name] || 0;
+    const now = this.ctx.currentTime, gap = { swing: .07, hit_red: .05, hit_blue: .05, hit_yellow: .05, hit_green: .05, boom: .06, zap: .05, freeze: .08, coin: .06, xp: .045, thorn: .07, rumble: .08, pop: .04, summon: .12, burn: .25 }[name] || 0;
     if (gap && now - (this.last[name] || 0) < gap) return;
     this.last[name] = now;
     const T = this.tone.bind(this), N = this.noise.bind(this);
@@ -213,6 +213,8 @@ const AU = {
       case 'boom': N(.35 * p, { f: 700, to: 90, vol: .22 * p }); T(110, .3 * p, { vol: .28 * p, to: 35 }); break;
       case 'zap': T(1300 + Math.random() * 500, .12, { type: 'sawtooth', to: 180, vol: .05, lp: 4000 }); N(.06, { ft: 'highpass', f: 3000, vol: .08 }); break;
       case 'freeze': [0, .03, .06].forEach((d, i) => T(1500 + i * 520, .14, { type: 'triangle', vol: .04, at: this.ctx.currentTime + d })); break;
+      case 'rumble': N(.5 * p, { f: 260, to: 70, vol: .2 * Math.min(1.5, p) }); T(62, .45 * p, { vol: .22 * Math.min(1.5, p), to: 38 }); break;
+      case 'thorn': T(1500, .05, { type: 'square', vol: .025, to: 700 }); N(.05, { ft: 'highpass', f: 4000, vol: .05 }); break;
       case 'xp': T(900 + Math.random() * 300, .05, { type: 'triangle', vol: .025 }); break;
       case 'coin': T(1320, .05, { vol: .035 }); T(1760, .06, { vol: .03, at: now + .045 }); break;
       case 'pop': T(420, .06, { vol: .04, to: 110 }); break;
@@ -302,8 +304,8 @@ const TAU = Math.PI * 2;
 const R = 300, SPAWN_R = R + 85, PR = 13;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6' };
-const ELEM = { red: 'Fire', yellow: 'Lightning', blue: 'Frost', green: 'Nature' };
-const ADJ = { red: 'Ember', yellow: 'Storm', blue: 'Frost', green: 'Grove' };
+const ELEM = { red: 'Fire', yellow: 'Lightning', blue: 'Frost', green: 'Earth' };
+const ADJ = { red: 'Ember', yellow: 'Storm', blue: 'Frost', green: 'Stone' };
 const ROMAN = ['I', 'II', 'III', 'IV'];
 const TM = [1, 1.65, 2.6, 4.8];
 const ETHRESH = [2, 4, 6];
@@ -343,6 +345,7 @@ const STAT = {
   stun:    { set: 12,   afx: 3,   u: '%', t: 'stun chance on hit' },
   leech:   { set: 4,   afx: 1,   u: '%', t: 'life steal' },
   pickup:  { set: 50,  afx: 15,  u: '%', t: 'pickup range' },
+  thorns:  { set: 40,  afx: 12,  u: '%', t: 'thorns' },
 };
 const STAT_KEYS = Object.keys(STAT);
 const AFX_SCALE = [1, 1.5, 2.2, 3.6];
@@ -378,11 +381,12 @@ const EPASS = {
     { k: 'lstun', v: 4,  base: 0,   cap: 40,  u: '%', t: 'chance for lightning to stun' },
   ],
   green: [
-    { k: 'shp',   v: 15, base: 100, cap: 400, u: '%', t: 'sprout HP' },
-    { k: 'sspd',  v: 10, base: 100, cap: 200, u: '%', t: 'sprout speed' },
+    { k: 'shp',   v: 15, base: 100, cap: 400, u: '%', t: 'golem HP' },
+    { k: 'sspd',  v: 10, base: 100, cap: 200, u: '%', t: 'golem speed' },
     { k: 'srate', v: 10, base: 100, cap: 250, u: '%', t: 'summon rate' },
-    { k: 'slife', v: 15, base: 100, cap: 300, u: '%', t: 'sprout lifetime' },
-    { k: 'scap',  v: 5,  base: 30,  cap: 70,  u: '',  t: 'max sprouts at once' },
+    { k: 'slife', v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' },
+    { k: 'scap',  v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' },
+    { k: 'bond',  v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' },
   ],
 };
 const EDEF = {}; for (const c of ORDER) { EDEF[c] = {}; for (const d of EPASS[c]) EDEF[c][d.k] = d; }
@@ -432,19 +436,25 @@ const SET_POOL = {
     { id: 'current',  name: 'Live Current',  v: [15, 30, 50], d: (e, s) => `Lightning weapons attack ${e.v[s]}% faster` },
   ],
   green: [
-    { id: 'swarm',    name: 'Swarm',         v: [30, 60, 100], hp: [10, 15, 20], spd: [20, 35, 60], d: (e, s) => `Sprouts spawn ${e.v[s]}% more often and move ${e.spd[s]}% faster, with ${e.hp[s]}% less HP` },
-    { id: 'bark',     name: 'Barkskin',      v: [30, 60, 120], php: [15, 30, 60], d: (e, s) => `Sprouts get +${e.v[s]}% HP; you get +${e.php[s]} max HP` },
-    { id: 'over',     name: 'Overgrowth',    v: [1, 2, 3], d: (e, s) => `When a sprout kills an enemy, ${pl(e.v[s], 'new sprout grows', 'new sprouts grow')}` },
-    { id: 'brood',    name: 'Brood',         v: [1, 2, 3], d: (e, s) => `Every summon brings +${pl(e.v[s], 'extra sprout', 'extra sprouts')}` },
-    { id: 'thorn',    name: 'Thorn Burst',   v: [50, 100, 200], d: (e, s) => `Sprouts burst when they die, dealing ${e.v[s]}% of their max HP around them` },
-    { id: 'ancient',  name: 'Ancients',      v: [9, 7, 5], m: [4, 6, 9], d: (e, s) => `Every ${e.v[s]}s grow an Ancient: a big sprout with ${e.m[s]}× HP` },
-    { id: 'leech',    name: 'Sap Leech',     v: [3, 6, 10], d: (e, s) => `Damage dealt by sprouts heals you for ${e.v[s]}%` },
-    { id: 'vines',    name: 'Entangle',      v: [.6, 1, 1.6], d: (e, s) => `Sprouts root enemies they touch in place for ${e.v[s]}s` },
-    { id: 'seeds',    name: 'Seed Pods',     v: [10, 20, 35], d: (e, s) => `Any enemy has ${e.v[s]}% chance to drop a seed that sprouts on death` },
-    { id: 'bloom',    name: 'Lifebloom',     v: [10, 7, 5], h: [8, 12, 20], d: (e, s) => `Every ${e.v[s]}s bloom and heal ${e.h[s]}% of your max HP` },
-    { id: 'treant',   name: 'Guardian Treant',v: [15, 10, 6], m: [8, 12, 18], d: (e, s) => `A Treant with ${e.m[s]}× sprout HP guards you and regrows ${e.v[s]}s after falling` },
-    { id: 'frenzy',   name: 'Frenzy',        v: [1, 2, 3], d: (e, s) => `+${e.v[s]}% weapon damage for every living sprout` },
-    { id: 'pollen',   name: 'Wild Pollen',   v: [25, 50, 100], d: (e, s) => `Sprout hits have ${e.v[s]}% chance to burn, chill or shock the enemy` },
+    { id: 'swarm',    name: 'Swarm',          v: [30, 60, 100], hp: [10, 15, 20], spd: [20, 35, 60], d: (e, s) => `Golems form ${e.v[s]}% more often and move ${e.spd[s]}% faster, with ${e.hp[s]}% less HP` },
+    { id: 'bark',     name: 'Granite Hide',   v: [30, 60, 120], php: [15, 30, 60], d: (e, s) => `Golems get +${e.v[s]}% HP; you get +${e.php[s]} max HP` },
+    { id: 'over',     name: 'Rubble Born',    v: [1, 2, 3], d: (e, s) => `When a golem kills an enemy, ${pl(e.v[s], 'new golem forms', 'new golems form')} from the rubble` },
+    { id: 'brood',    name: 'Quarry',         v: [1, 2, 3], d: (e, s) => `Every summon brings +${pl(e.v[s], 'extra golem', 'extra golems')}` },
+    { id: 'thorn',    name: 'Rock Burst',     v: [50, 100, 200], d: (e, s) => `Golems burst when they crumble, dealing ${e.v[s]}% of their max HP around them` },
+    { id: 'ancient',  name: 'Ancients',       v: [9, 7, 5], m: [4, 6, 9], d: (e, s) => `Every ${e.v[s]}s raise an Ancient: a big golem with ${e.m[s]}× HP` },
+    { id: 'leech',    name: 'Lifestone',      v: [3, 6, 10], d: (e, s) => `Damage dealt by golems heals you for ${e.v[s]}%` },
+    { id: 'vines',    name: 'Grasping Earth', v: [.6, 1, 1.6], d: (e, s) => `Golems root enemies they hit in place for ${e.v[s]}s` },
+    { id: 'seeds',    name: 'Stone Seeds',    v: [10, 20, 35], d: (e, s) => `Any enemy has ${e.v[s]}% chance to carry a stone seed that becomes a golem on death` },
+    { id: 'bloom',    name: 'Mending Earth',  v: [10, 7, 5], h: [8, 12, 20], d: (e, s) => `Every ${e.v[s]}s the ground heals you for ${e.h[s]}% of your max HP` },
+    { id: 'treant',   name: 'Colossus',       v: [15, 10, 6], m: [8, 12, 18], d: (e, s) => `A Colossus with ${e.m[s]}× golem HP guards you and reforms ${e.v[s]}s after falling` },
+    { id: 'frenzy',   name: 'Warband',        v: [1, 2, 3], d: (e, s) => `+${e.v[s]}% weapon damage for every living golem` },
+    { id: 'pollen',   name: 'Geode Core',     v: [25, 50, 100], d: (e, s) => `Golem hits have ${e.v[s]}% chance to burn, chill or shock the enemy` },
+    { id: 'boulder',  name: 'Boulder Roll',   v: [5, 4, 3], m: [1.2, 1.6, 2.2], d: (e, s) => `Every ${e.v[s]}s roll a boulder that crushes everything in a line` },
+    { id: 'barrage',  name: 'Rock Barrage',   v: [5, 4, 3], n: [8, 12, 16], m: [.5, .65, .85], d: (e, s) => `Every ${e.v[s]}s fire ${e.n[s]} stones outward in every direction` },
+    { id: 'quake',    name: 'Earthquake',     v: [8, 6, 4.5], r: [110, 140, 180], st: [.6, .9, 1.2], m: [.8, 1, 1.3], d: (e, s) => `Every ${e.v[s]}s slam the ground, damaging and stunning enemies within ${e.r[s]} for ${e.st[s]}s` },
+    { id: 'fissure',  name: 'Fissure',        v: [6, 5, 4], n: [6, 8, 10], d: (e, s) => `Every ${e.v[s]}s the ground cracks open towards the enemy, rooting everything along it` },
+    { id: 'stoneskin',name: 'Stone Skin',     v: [4, 8, 14], th: [25, 50, 90], d: (e, s) => `+${e.v[s]} armor and +${e.th[s]}% thorns` },
+    { id: 'rockfall', name: 'Rockfall',       v: [4, 3, 2], n: [2, 3, 5], m: [.8, 1, 1.3], d: (e, s) => `Every ${e.v[s]}s ${e.n[s]} rocks fall on enemies, stunning them` },
   ],
 };
 
@@ -461,6 +471,7 @@ const PRIM = [
   { k: 'regen',   v: .6,  t: v => `+${v} HP regen / sec` },
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
+  { k: 'thorns',  v: 20,  t: v => `+${v}% thorns` },
 ];
 
 const ETYPES = {
@@ -517,7 +528,7 @@ function rollRun() {
 function freshState(sets, tsets) {
   return {
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0 },
-    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0 },
+    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0, thorns: 0 },
     ep: { red: {}, yellow: {}, blue: {}, green: {} },
     runSets: sets, typeSets: tsets, counts: {}, tcounts: {},
     level: 1, xp: 0, pendingLv: 0, gold: 0, wave: 0, kills: 0,
@@ -588,7 +599,7 @@ function recalc() {
   S.counts = {}; S.tcounts = {};
   for (const w of S.weapons) { S.counts[w.el] = (S.counts[w.el] || 0) + 1; S.tcounts[w.type] = (S.tcounts[w.type] || 0) + 1; }
   const st = S.st;
-  const add = { range: st.range, atkSpd: st.atkSpd, critDmg: st.critDmg, crit: st.crit, knock: 0, maxHp: st.maxHp, flat: st.flat, pen: st.pen, armor: st.armor, regen: st.regen, dmgPct: st.dmgPct, speed: st.speed, stun: 0, leech: 0, pickup: st.pickup || 0 };
+  const add = { range: st.range, atkSpd: st.atkSpd, critDmg: st.critDmg, crit: st.crit, knock: 0, maxHp: st.maxHp, flat: st.flat, pen: st.pen, armor: st.armor, regen: st.regen, dmgPct: st.dmgPct, speed: st.speed, stun: 0, leech: 0, pickup: st.pickup || 0, thorns: st.thorns || 0 };
   for (const t of TYPE_KEYS) { const n = S.tcounts[t] || 0; S.typeSets[t].forEach((k, i) => { if (n >= TTHRESH[i]) add[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) add[k] += afxVal(k, w.tier);
   Object.assign(tot, add);
@@ -598,6 +609,9 @@ function recalc() {
   tot.baseSpeed = 175 * (1 + tot.speed / 100);
   tot.rangeM = 1 + tot.range / 100;
   tot.pickR = 48 * (1 + tot.pickup / 100);
+  tot.armor += setv('green', 'stoneskin');
+  tot.thorns += setv('green', 'stoneskin', 'th');
+  tot.bond = E('green', 'bond') / 100;
   S.p.hp = Math.min(S.p.hp, tot.maxHp);
   renderSlots();
 }
@@ -754,6 +768,7 @@ function explode(x, y, rad, dmg, col, o = {}) {
     if (o.ignite) applyBurn(e, burnDpsFrom(dmg));
     if (o.chill) applyChill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
+    if (o.stun) stun(e, o.stun);
   }
 }
 function nearest(x, y, range, exclude, fromEdge) {
@@ -875,7 +890,7 @@ function strike(w, e, dir) {
 function bestGreenTier() { return S.weapons.filter(w => w.el === 'green').reduce((m, w) => Math.max(m, w.tier), 0); }
 function sproutHp(tier, mult = 1) {
   const hpPct = (E('green', 'shp') + setv('green', 'bark') - setv('green', 'swarm', 'hp')) / 100;
-  return SUMHP[tier] * (1 + tot.dmgPct / 100) * hpPct * (1 + S.wave * .06) * mult;
+  return SUMHP[tier] * hpPct * (1 + S.wave * .07) * mult;
 }
 function spawnSprouts(tier, x, y, n, mult = 1) {
   const hp = sproutHp(tier, mult);
@@ -884,7 +899,7 @@ function spawnSprouts(tier, x, y, n, mult = 1) {
   for (let i = 0; i < n; i++) {
     if (S.sprouts.length >= cap) break;
     const a = Math.random() * TAU;
-    S.sprouts.push({ x: x + Math.cos(a) * 10, y: y + Math.sin(a) * 10, hp, maxHp: hp, life, vx: 0, vy: 0, a, hitCd: 0, big: mult > 1 });
+    S.sprouts.push({ x: x + Math.cos(a) * 10, y: y + Math.sin(a) * 10, hp, maxHp: hp, life, vx: 0, vy: 0, a, hitCd: 0, big: mult > 1, seed: Math.random() * TAU });
   }
   AU.play('summon');
   S.fx.push({ k: 'ring', x, y, r: mult > 1 ? 30 : 16, t: 0, life: .3, col: COL.green });
@@ -894,9 +909,14 @@ function sproutDied(s) {
   if (th) explode(s.x, s.y, s.big ? 80 : 50, s.maxHp * th / 100, COL.green, { pierce: true, small: true });
 }
 function sproutContact(s, e, big) {
-  const dmg = Math.min(s.hp, e.hp);
-  dealDamage(e, dmg, { col: COL.green, trueDmg: true, src: 'sprout' });
-  s.hp -= dmg;
+  // HP is the golem's damage budget; your inherited damage % and crit make every point of it hit harder
+  const b = tot.bond;
+  let eff = 1 + b * tot.dmgPct / 100 + b * tot.flat / 20;
+  const crit = Math.random() * 100 < tot.crit * b;
+  if (crit) eff *= 1 + b * (tot.critMult - 1);
+  const dmg = Math.min(s.hp * eff, e.hp);
+  dealDamage(e, dmg, { col: COL.green, trueDmg: true, src: 'sprout', crit });
+  s.hp -= dmg / eff;
   const leech = setv('green', 'leech');
   if (leech) S.p.hp = Math.min(tot.maxHp, S.p.hp + dmg * leech / 100);
   const vn = setv('green', 'vines'); if (vn && !e.dead) stun(e, vn);
@@ -958,6 +978,15 @@ function updateDrops(dt) {
 function gainXp(n) {
   S.xp += n;
   while (S.xp >= xpNeed()) { S.xp -= xpNeed(); S.level++; S.pendingLv++; AU.play('level'); S.fx.push({ k: 'ring', x: S.p.x, y: S.p.y, r: 40, t: 0, life: .5, col: '#9b8cff' }); }
+}
+// thorns: every enemy attack is punished, even ones you're invulnerable to.
+// Reflects a % of (the hit + 3x your armor + 8% of your max HP), boosted by your % damage, as armor-piercing damage.
+function thorns(e) {
+  if (!tot.thorns || e.dead) return;
+  const dmg = tot.thorns / 100 * (e.dmg + 3 * tot.armor + .08 * tot.maxHp) * (1 + tot.dmgPct / 100);
+  dealDamage(e, dmg, { col: '#d9b56a', pierce: true });
+  AU.play('thorn');
+  S.fx.push({ k: 'spikes', x: S.p.x, y: S.p.y, dir: Math.atan2(e.y - S.p.y, e.x - S.p.x), t: 0, life: .25 });
 }
 function hurt(dmg, src) {
   if (S.p.inv > 0) return;
@@ -1076,6 +1105,41 @@ function abilities(dt) {
     if (tg) lstrike(tg, avg * setv('yellow', 'storm', 'm') * ldm(), { from: { x: p.x + Math.cos(S.time) * 20, y: p.y - 40 } });
   }
   // ---------- Nature
+  const EC = '#c9a25a';
+  if (setv('green', 'boulder') && timer('boulder', setv('green', 'boulder'), dt)) {
+    const a = aimDir(); AU.play('rumble');
+    S.projs.push({ kind: 'boulder', x: p.x, y: p.y, vx: Math.cos(a) * 270, vy: Math.sin(a) * 270, life: 2.4, dmg: avg * setv('green', 'boulder', 'm'), hit: new Set(), rot: 0 });
+  }
+  if (setv('green', 'barrage') && timer('barrage', setv('green', 'barrage'), dt)) {
+    const n = setv('green', 'barrage', 'n'), off = Math.random() * TAU; AU.play('rumble', .5);
+    for (let i = 0; i < n; i++) { const a = off + i / n * TAU; S.projs.push({ kind: 'stone', x: p.x, y: p.y, vx: Math.cos(a) * 380, vy: Math.sin(a) * 380, life: .75, dmg: avg * setv('green', 'barrage', 'm'), hit: new Set(), pierce: 1 }); }
+  }
+  if (setv('green', 'quake') && timer('quake', setv('green', 'quake'), dt)) {
+    const r = setv('green', 'quake', 'r'), st2 = setv('green', 'quake', 'st'), dmg = avg * setv('green', 'quake', 'm');
+    AU.play('rumble', 1.4); S.shake = Math.min(12, S.shake + 8);
+    S.fx.push({ k: 'boom', x: p.x, y: p.y, r, t: 0, life: .5, col: EC });
+    for (let i = 0; i < 10; i++) { const a = i / 10 * TAU + rnd(-.2, .2); S.fx.push({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(a) * r * rnd(.6, 1), y2: p.y + Math.sin(a) * r * rnd(.6, 1), t: 0, life: .7 }); }
+    for (const e of S.enemies) if (!e.dead && Math.hypot(e.x - p.x, e.y - p.y) < r + e.r) { dealDamage(e, dmg, { col: EC }); stun(e, st2); }
+  }
+  if (setv('green', 'fissure') && timer('fissure', setv('green', 'fissure'), dt)) {
+    const a = aimDir(), n = setv('green', 'fissure', 'n'), ox = p.x, oy = p.y; AU.play('rumble');
+    for (let i = 0; i < n; i++) {
+      const d1 = 20 + i * 26, d2 = d1 + 26;
+      S.later.push({ t: i * .045, f: () => {
+        const x = ox + Math.cos(a) * d1, y = oy + Math.sin(a) * d1;
+        S.fx.push({ k: 'crack', x1: x, y1: y, x2: ox + Math.cos(a) * d2 + rnd(-6, 6), y2: oy + Math.sin(a) * d2 + rnd(-6, 6), t: 0, life: 1.2 });
+        explode(x, y, 24, avg * .7, EC, { stun: 1, small: true });
+      } });
+    }
+  }
+  if (setv('green', 'rockfall') && timer('rockfall', setv('green', 'rockfall'), dt)) {
+    const dmg = avg * setv('green', 'rockfall', 'm');
+    shuffle(inArena()).slice(0, setv('green', 'rockfall', 'n')).forEach((e, i) => {
+      const x = e.x, y = e.y;
+      S.later.push({ t: i * .1, f: () => S.fx.push({ k: 'warn', x, y, r: 30, t: 0, life: .35, col: EC }) });
+      S.later.push({ t: i * .1 + .35, f: () => explode(x, y, 30, dmg, EC, { stun: .5, small: true }) });
+    });
+  }
   if (setv('green', 'ancient') && timer('ancient', setv('green', 'ancient'), dt)) spawnSprouts(bestGreenTier(), p.x, p.y, 1, setv('green', 'ancient', 'm'));
   if (setv('green', 'bloom') && timer('bloom', setv('green', 'bloom'), dt)) {
     p.hp = Math.min(tot.maxHp, p.hp + tot.maxHp * setv('green', 'bloom', 'h') / 100);
@@ -1150,6 +1214,15 @@ function update(dt) {
     if (f.kind === 'fireball') {
       if (Math.random() < .6) S.fx.push({ k: 'spark', x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c' });
       for (const e of S.enemies) if (!e.dead && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 8) { f.life = 0; explode(f.x, f.y, f.rad, f.dmg, '#ff7a2a', { ignite: true }); break; }
+    } else if (f.kind === 'boulder') {
+      f.rot += dt * 8;
+      if (Math.random() < .4) S.fx.push({ k: 'spark', x: f.x + rnd(-10, 10), y: f.y + rnd(-10, 10), vx: rnd(-20, 20), vy: rnd(-20, 20), t: 0, life: .4, col: '#8a7350' });
+      for (const e of S.enemies) if (!e.dead && !f.hit.has(e) && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 15) {
+        f.hit.add(e); dealDamage(e, f.dmg, { col: '#c9a25a' }); stun(e, .3);
+        if (!e.boss) { const l = Math.hypot(f.vx, f.vy); e.kx += -f.vy / l * 20 * (Math.random() < .5 ? 1 : -1); e.ky += f.vx / l * 20; }
+      }
+    } else if (f.kind === 'stone') {
+      for (const e of S.enemies) if (!e.dead && !f.hit.has(e) && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 5) { f.hit.add(e); dealDamage(e, f.dmg, { col: '#c9a25a' }); if (f.pierce-- <= 0) { f.life = 0; break; } }
     } else {
       for (const e of S.enemies) if (!e.dead && !f.hit.has(e) && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 4) { f.hit.add(e); dealDamage(e, f.dmg, { col: '#bfeaff' }); applyChill(e, 1); }
     }
@@ -1241,7 +1314,7 @@ function update(dt) {
     if (e.boss && !held) { e.summonT -= dt; if (e.summonT <= 0) { e.summonT = 5; for (let i = 0; i < 3; i++) spawnEnemy('grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); } }
     e.x += vx * sp * dt + e.kx * Math.min(1, dt * 12); e.y += vy * sp * dt + e.ky * Math.min(1, dt * 12);
     e.kx *= Math.max(0, 1 - dt * 12); e.ky *= Math.max(0, 1 - dt * 12);
-    if (!held && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; hurt(e.dmg, e); if (S.phase !== 'fight') return; }
+    if (!held && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
   }
   // separation + fire spread
   const es = S.enemies;
@@ -1435,7 +1508,7 @@ function elemLine(el, tier) {
   if (el === 'red') return `${fmt(g('red', 'ign'))}% chance to ignite on hit`;
   if (el === 'yellow') return `${fmt(g('yellow', 'arcCh'))}% chance to arc to ${g('yellow', 'jumps')} enemies`;
   if (el === 'blue') return `${fmt(g('blue', 'chillCh'))}% chance to chill (+${tier >= 2 ? 2 : 1}); 4 stacks freeze`;
-  return `Summons a sprout every ${SUM_CD}s (base ${SUMHP[tier]} HP)`;
+  return `Summons a golem every ${SUM_CD}s (${SUMHP[tier]} HP) that inherits ${S ? fmt(E('green', 'bond')) : 60}% of your damage & crit`;
 }
 const afxHtml = w => w.afx.map(k => `<li class="af">${statText(k, afxVal(k, w.tier))}</li>`).join('');
 const afxShort = w => w.afx.map(k => statText(k, afxVal(k, w.tier))).join(' · ');
@@ -1495,7 +1568,7 @@ function statsHtml() {
     <span>Crit <b>${fmt(tot.crit)}%</b></span><span>Crit dmg <b>${Math.round(tot.critMult * 100)}%</b></span><span>Atk speed <b>+${fmt(tot.atkSpd)}%</b></span>
     <span>Armor <b>${fmt(tot.armor)}</b></span><span>Penetration <b>${fmt(tot.pen)}</b></span><span>Stun <b>${fmt(tot.stun)}%</b></span>
     <span>Regen <b>${fmt(tot.regen)}/s</b></span><span>Move <b>+${fmt(tot.speed)}%</b></span><span>Range <b>+${fmt(tot.range)}%</b></span>
-    <span>Knockback <b>${fmt(tot.knock)}%</b></span><span>Life steal <b>${fmt(tot.leech)}%</b></span><span>Pickup <b>+${fmt(tot.pickup)}%</b></span>
+    <span>Knockback <b>${fmt(tot.knock)}%</b></span><span>Life steal <b>${fmt(tot.leech)}%</b></span><span>Pickup <b>+${fmt(tot.pickup)}%</b></span><span>Thorns <b>${fmt(tot.thorns)}%</b></span>
   </div>${passives ? `<div class="chips">${passives}</div>` : ''}`;
 }
 
@@ -1656,12 +1729,14 @@ function draw() {
   const drawSprout = (s, k, fade, col) => {
     cx.globalAlpha = fade;
     cx.fillStyle = 'rgba(94,224,138,.15)'; cx.beginPath(); cx.arc(s.x, s.y, 10 * k, 0, TAU); cx.fill();
-    cx.fillStyle = col; cx.beginPath(); cx.arc(s.x, s.y, 6 * k, 0, TAU); cx.fill();
-    cx.fillStyle = '#0d2a18'; cx.beginPath(); cx.arc(s.x, s.y, 2.6 * k, 0, TAU); cx.fill();
+    cx.fillStyle = col; cx.beginPath();
+    for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + (s.seed || 0), r2 = 6.5 * k * (.82 + .18 * Math.sin(i * 2.7 + (s.seed || 0) * 5)); cx.lineTo(s.x + Math.cos(a) * r2, s.y + Math.sin(a) * r2); }
+    cx.closePath(); cx.fill();
+    cx.fillStyle = '#2d4a2a'; cx.fillRect(s.x - 2.6 * k, s.y - 1.4 * k, 1.7 * k, 1.7 * k); cx.fillRect(s.x + .9 * k, s.y - 1.4 * k, 1.7 * k, 1.7 * k);
     cx.strokeStyle = COL.green; cx.lineWidth = 1.6; cx.beginPath(); cx.arc(s.x, s.y, 8.5 * k, -Math.PI / 2, -Math.PI / 2 + TAU * clamp(s.hp / s.maxHp, 0, 1)); cx.stroke();
     cx.globalAlpha = 1;
   };
-  for (const s of S.sprouts) drawSprout(s, s.big ? 1.9 : 1, s.life < 1 ? s.life : 1, s.big ? '#8fe8a8' : '#bff5cf');
+  for (const s of S.sprouts) drawSprout(s, s.big ? 1.9 : 1, s.life < 1 ? s.life : 1, s.big ? '#9cc98a' : '#b9d8a2');
   if (S.treant) {
     const t = S.treant;
     drawSprout(t, 2.4, 1, '#5fbf78');
@@ -1669,8 +1744,17 @@ function draw() {
     for (let i = 0; i < 5; i++) { const a = i / 5 * TAU + T; cx.beginPath(); cx.moveTo(t.x + Math.cos(a) * 14, t.y + Math.sin(a) * 14); cx.lineTo(t.x + Math.cos(a) * 22, t.y + Math.sin(a) * 22); cx.stroke(); }
   }
 
+  for (const f of S.projs) {
+    if (f.kind === 'boulder') {
+      cx.save(); cx.translate(f.x, f.y); cx.rotate(f.rot);
+      cx.fillStyle = '#7a6446'; cx.beginPath(); for (let i = 0; i < 8; i++) { const a = i / 8 * TAU, r2 = 14 * (.85 + .15 * Math.sin(i * 3.1)); cx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2); } cx.closePath(); cx.fill();
+      cx.fillStyle = '#5a4832'; cx.beginPath(); cx.arc(-4, -3, 3, 0, TAU); cx.arc(5, 4, 2.4, 0, TAU); cx.fill();
+      cx.restore();
+    } else if (f.kind === 'stone') { cx.fillStyle = '#a88a5c'; cx.beginPath(); cx.arc(f.x, f.y, 4, 0, TAU); cx.fill(); }
+  }
   cx.globalCompositeOperation = 'lighter';
   for (const f of S.projs) {
+    if (f.kind === 'boulder' || f.kind === 'stone') continue;
     if (f.kind === 'fireball') {
       cx.fillStyle = 'rgba(255,90,40,.35)'; cx.beginPath(); cx.arc(f.x, f.y, 13, 0, TAU); cx.fill();
       cx.fillStyle = '#ffd080'; cx.beginPath(); cx.arc(f.x, f.y, 6, 0, TAU); cx.fill();
@@ -1725,6 +1809,12 @@ function draw() {
       cx.strokeStyle = hexA(f.col, a * .9); cx.lineWidth = 2; cx.beginPath(); cx.arc(f.x, f.y, f.r * (f.k === 'pop' ? 1 + k : .6 + k * .5), 0, TAU); cx.stroke();
     } else if (f.k === 'spark') {
       cx.fillStyle = hexA(f.col, a); cx.fillRect(f.x - 1.5, f.y - 1.5, 3, 3);
+    } else if (f.k === 'crack') {
+      cx.strokeStyle = `rgba(201,162,90,${a * .8})`; cx.lineWidth = 2.5; cx.lineCap = 'round';
+      cx.beginPath(); cx.moveTo(f.x1, f.y1); cx.lineTo((f.x1 + f.x2) / 2 + 3, (f.y1 + f.y2) / 2 - 3); cx.lineTo(f.x2, f.y2); cx.stroke();
+    } else if (f.k === 'spikes') {
+      cx.fillStyle = `rgba(230,200,130,${a})`;
+      for (let i = -2; i <= 2; i++) { const an = f.dir + i * .35, r1 = PR + 2, r2 = PR + 10 + 6 * (1 - Math.abs(i) / 3); cx.beginPath(); cx.moveTo(f.x + Math.cos(an - .12) * r1, f.y + Math.sin(an - .12) * r1); cx.lineTo(f.x + Math.cos(an) * r2, f.y + Math.sin(an) * r2); cx.lineTo(f.x + Math.cos(an + .12) * r1, f.y + Math.sin(an + .12) * r1); cx.closePath(); cx.fill(); }
     }
   }
   cx.globalCompositeOperation = 'source-over';
