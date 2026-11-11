@@ -100,6 +100,10 @@
   .rs .e b{font-weight:600}
   .rs .e.on{color:#e4e1d8}
   .rs .e.on b{color:var(--c)}
+  .rs.own{background:linear-gradient(180deg,color-mix(in srgb,var(--c) 16%,transparent),color-mix(in srgb,var(--c) 4%,transparent)),var(--panel2);border-color:color-mix(in srgb,var(--c) 55%,transparent);box-shadow:0 0 12px color-mix(in srgb,var(--c) 18%,transparent)}
+  .rs.own .e{border-top-color:color-mix(in srgb,var(--c) 18%,transparent)}
+  .note{background:#1b1712;border:1px solid #4a3c1c;border-left:3px solid var(--gold);border-radius:6px;padding:10px 12px;font-size:13px;line-height:1.5;margin-top:12px}
+  .note.endless{background:#1d1013;border-color:#5a2028;border-left-color:var(--red)}
   .pips{float:right;letter-spacing:1px;color:var(--c)}
   .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:3px 12px;font-size:13px;color:#c9c6bd}
   .stats span b{color:var(--text)}
@@ -196,7 +200,7 @@ const AU = {
   // --- sound effects (throttled so hundreds of hits don't turn into mush)
   play(name, p = 1) {
     if (!this.ctx || !this.on.sfx) return;
-    const now = this.ctx.currentTime, gap = { swing: .07, hit_red: .05, hit_blue: .05, hit_yellow: .05, hit_green: .05, boom: .06, zap: .05, freeze: .08, coin: .06, pop: .04, summon: .12, burn: .25 }[name] || 0;
+    const now = this.ctx.currentTime, gap = { swing: .07, hit_red: .05, hit_blue: .05, hit_yellow: .05, hit_green: .05, boom: .06, zap: .05, freeze: .08, coin: .06, xp: .045, pop: .04, summon: .12, burn: .25 }[name] || 0;
     if (gap && now - (this.last[name] || 0) < gap) return;
     this.last[name] = now;
     const T = this.tone.bind(this), N = this.noise.bind(this);
@@ -209,6 +213,7 @@ const AU = {
       case 'boom': N(.35 * p, { f: 700, to: 90, vol: .22 * p }); T(110, .3 * p, { vol: .28 * p, to: 35 }); break;
       case 'zap': T(1300 + Math.random() * 500, .12, { type: 'sawtooth', to: 180, vol: .05, lp: 4000 }); N(.06, { ft: 'highpass', f: 3000, vol: .08 }); break;
       case 'freeze': [0, .03, .06].forEach((d, i) => T(1500 + i * 520, .14, { type: 'triangle', vol: .04, at: this.ctx.currentTime + d })); break;
+      case 'xp': T(900 + Math.random() * 300, .05, { type: 'triangle', vol: .025 }); break;
       case 'coin': T(1320, .05, { vol: .035 }); T(1760, .06, { vol: .03, at: now + .045 }); break;
       case 'pop': T(420, .06, { vol: .04, to: 110 }); break;
       case 'burn': N(.25, { f: 2500, ft: 'bandpass', vol: .04 }); break;
@@ -323,20 +328,21 @@ const svg = (t, c) => `<svg viewBox="0 0 24 24" fill="none" stroke="${c}" stroke
 
 // ---- shared stat pool: weapon-type sets (fixed) and per-weapon affixes (scale with tier)
 const STAT = {
-  range:   { set: 15,  afx: 6,   u: '%', t: 'attack range' },
-  atkSpd:  { set: 15,  afx: 6,   u: '%', t: 'attack speed' },
-  critDmg: { set: 40,  afx: 15,  u: '%', t: 'crit damage' },
-  crit:    { set: 8,   afx: 3,   u: '%', t: 'crit chance' },
-  knock:   { set: 20,  afx: 8,   u: '%', t: 'knockback chance' },
-  maxHp:   { set: 30,  afx: 10,  u: '',  t: 'max HP' },
-  flat:    { set: 4,   afx: 2,   u: '',  t: 'flat damage' },
-  pen:     { set: 5,   afx: 2,   u: '',  t: 'armor penetration' },
-  armor:   { set: 4,   afx: 1,   u: '',  t: 'armor' },
-  regen:   { set: 1.5, afx: .4,  u: '',  t: 'HP regen / sec' },
-  dmgPct:  { set: 12,  afx: 5,   u: '%', t: 'damage' },
-  speed:   { set: 10,  afx: 4,   u: '%', t: 'move speed' },
-  stun:    { set: 8,   afx: 3,   u: '%', t: 'stun chance on hit' },
-  leech:   { set: 3,   afx: 1,   u: '%', t: 'life steal' },
+  range:   { set: 22,  afx: 6,   u: '%', t: 'attack range' },
+  atkSpd:  { set: 22,  afx: 6,   u: '%', t: 'attack speed' },
+  critDmg: { set: 60,  afx: 15,  u: '%', t: 'crit damage' },
+  crit:    { set: 12,   afx: 3,   u: '%', t: 'crit chance' },
+  knock:   { set: 30,  afx: 8,   u: '%', t: 'knockback chance' },
+  maxHp:   { set: 45,  afx: 10,  u: '',  t: 'max HP' },
+  flat:    { set: 6,   afx: 2,   u: '',  t: 'flat damage' },
+  pen:     { set: 8,   afx: 2,   u: '',  t: 'armor penetration' },
+  armor:   { set: 6,   afx: 1,   u: '',  t: 'armor' },
+  regen:   { set: 2.2, afx: .4,  u: '',  t: 'HP regen / sec' },
+  dmgPct:  { set: 18,  afx: 5,   u: '%', t: 'damage' },
+  speed:   { set: 14,  afx: 4,   u: '%', t: 'move speed' },
+  stun:    { set: 12,   afx: 3,   u: '%', t: 'stun chance on hit' },
+  leech:   { set: 4,   afx: 1,   u: '%', t: 'life steal' },
+  pickup:  { set: 50,  afx: 15,  u: '%', t: 'pickup range' },
 };
 const STAT_KEYS = Object.keys(STAT);
 const AFX_SCALE = [1, 1.5, 2.2, 3.6];
@@ -454,6 +460,7 @@ const PRIM = [
   { k: 'speed',   v: 8,   t: v => `+${v}% move speed` },
   { k: 'regen',   v: .6,  t: v => `+${v} HP regen / sec` },
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
+  { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
 ];
 
 const ETYPES = {
@@ -507,22 +514,61 @@ function rollRun() {
   const starters = ORDER.map((c, i) => makeWeapon(types[i], c, 0));
   return { sets, tsets, starters };
 }
-function newRun(starter) {
-  S = {
+function freshState(sets, tsets) {
+  return {
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0 },
     st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0 },
     ep: { red: {}, yellow: {}, blue: {}, green: {} },
-    runSets: pendingRun.sets, typeSets: pendingRun.tsets, counts: {}, tcounts: {},
+    runSets: sets, typeSets: tsets, counts: {}, tcounts: {},
     level: 1, xp: 0, pendingLv: 0, gold: 0, wave: 0, kills: 0,
-    weapons: [], enemies: [], sprouts: [], projs: [], flames: [], pillars: [], zones: [], rings: [], orbs: [], rods: [], later: [], fx: [], texts: [], coins: [], dying: [],
+    weapons: [], enemies: [], sprouts: [], projs: [], flames: [], pillars: [], zones: [], rings: [], orbs: [], rods: [], later: [], fx: [], texts: [], coins: [], drops: [], dying: [],
     treant: null, treantT: 0, surge: { n: 0, t: 0 }, avg: 1,
     toSpawn: 0, spawnT: 0, bossPending: false, time: 0, shake: 0, banner: null, phase: 'fight',
     offers: [], rerollCost: 0, uid: 1, timers: {}, staticCd: 0, novaCd: 0, spreadT: 0, trailT: 0, phoenixUsed: false,
+    collectT: null, converted: false, convertedInfo: null, lastLost: null, rerolls: 0,
   };
+}
+function showHud(on) { for (const id of ['hud', 'slots']) document.getElementById(id).classList.toggle('hidden', !on); }
+function newRun(starter) {
+  S = freshState(pendingRun.sets, pendingRun.tsets);
   addWeapon(starter);
   startWave();
-  document.getElementById('hud').classList.remove('hidden');
-  document.getElementById('slots').classList.remove('hidden');
+  showHud(true);
+}
+
+// ---- offline save: snapshot at the start of every wave and on every menu change
+const SAVE_KEY = 'lastCircleSave1';
+function saveRun() {
+  if (!S || S.phase === 'dead') return;
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      v: 1, st: S.st, ep: S.ep, tsets: S.typeSets,
+      sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(e => e.id)])),
+      level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
+      weapons: S.weapons.map(w => ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx })),
+      phase: S.phase, offers: S.offers, rerolls: S.rerolls || 0,
+      converted: S.converted, convertedInfo: S.convertedInfo, lastLost: S.lastLost,
+      perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(c => ({ k: c.pr.k, pv: c.pv, rare: c.rare, sec: c.sec ? { c: c.sec.c, k: c.sec.d.k } : null })) : null,
+    }));
+  } catch (e) {}
+}
+function loadSave() { try { const d = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null'); return d && d.v === 1 ? d : null; } catch (e) { return null; } }
+function clearSave() { try { localStorage.removeItem(SAVE_KEY); } catch (e) {} }
+function resumeRun(d) {
+  const sets = Object.fromEntries(ORDER.map(c => [c, d.sets[c].map(id => SET_POOL[c].find(e => e.id === id))]));
+  S = freshState(sets, d.tsets);
+  Object.assign(S.st, d.st); S.ep = d.ep;
+  for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'converted', 'convertedInfo', 'lastLost']) S[k] = d[k];
+  for (const w of d.weapons) S.weapons.push({ ...w, id: S.uid++, cd: 0, sumT: 1, anim: 0, dir: 0 });
+  recalc(); S.p.hp = tot.maxHp;
+  showHud(true);
+  if (d.phase === 'levelup' && S.pendingLv > 0) {
+    S.phase = 'levelup';
+    S.perkOffer = d.perkOffer ? d.perkOffer.map(c => ({ pr: PRIM.find(x => x.k === c.k), pv: c.pv, rare: c.rare, sec: c.sec ? { c: c.sec.c, d: EDEF[c.sec.c][c.sec.k] } : null })) : rollLevelCards();
+    renderLevelUp();
+  } else if (d.phase === 'shop') {
+    S.phase = 'shop'; S.offers = d.offers || rollOffers(); S.rerolls = d.rerolls || 0; S.rerollCost = rerollPrice(); renderShop();
+  } else { S.wave = d.wave - 1; startWave(); }
 }
 function addWeapon(w) {
   S.weapons.push({ ...w, id: S.uid++, cd: rnd(0, .3), sumT: 1, anim: 0, dir: 0 });
@@ -542,7 +588,7 @@ function recalc() {
   S.counts = {}; S.tcounts = {};
   for (const w of S.weapons) { S.counts[w.el] = (S.counts[w.el] || 0) + 1; S.tcounts[w.type] = (S.tcounts[w.type] || 0) + 1; }
   const st = S.st;
-  const add = { range: st.range, atkSpd: st.atkSpd, critDmg: st.critDmg, crit: st.crit, knock: 0, maxHp: st.maxHp, flat: st.flat, pen: st.pen, armor: st.armor, regen: st.regen, dmgPct: st.dmgPct, speed: st.speed, stun: 0, leech: 0 };
+  const add = { range: st.range, atkSpd: st.atkSpd, critDmg: st.critDmg, crit: st.crit, knock: 0, maxHp: st.maxHp, flat: st.flat, pen: st.pen, armor: st.armor, regen: st.regen, dmgPct: st.dmgPct, speed: st.speed, stun: 0, leech: 0, pickup: st.pickup || 0 };
   for (const t of TYPE_KEYS) { const n = S.tcounts[t] || 0; S.typeSets[t].forEach((k, i) => { if (n >= TTHRESH[i]) add[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) add[k] += afxVal(k, w.tier);
   Object.assign(tot, add);
@@ -551,6 +597,7 @@ function recalc() {
   tot.critMult = 1 + tot.critDmg / 100;
   tot.baseSpeed = 175 * (1 + tot.speed / 100);
   tot.rangeM = 1 + tot.range / 100;
+  tot.pickR = 48 * (1 + tot.pickup / 100);
   S.p.hp = Math.min(S.p.hp, tot.maxHp);
   renderSlots();
 }
@@ -562,11 +609,20 @@ function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 function waveCount(w) { return Math.round(12 + w * 5 + (w > 20 ? (w - 20) * 12 : 0)); }
 
+const GOLD_TO_XP = .5;
 function startWave() {
+  if (S.wave >= 20 && !S.converted) {
+    // entering endless: the shop closes and all gold becomes experience
+    const g = Math.floor(S.gold), xp = Math.round(g * GOLD_TO_XP);
+    S.converted = true; S.convertedInfo = { gold: g, xp }; S.gold = 0;
+    if (xp) { gainXp(xp); AU.play('level'); }
+    if (S.pendingLv > 0) { nextMenu(); return; }
+  }
   S.wave++;
   S.phase = 'fight';
   S.p.x = 0; S.p.y = 0; S.p.hp = tot.maxHp; S.p.inv = 1; S.p.shield = 0;
-  for (const k of ['enemies', 'sprouts', 'projs', 'flames', 'pillars', 'zones', 'rings', 'orbs', 'rods', 'later', 'fx', 'texts', 'coins']) S[k] = [];
+  for (const k of ['enemies', 'sprouts', 'projs', 'flames', 'pillars', 'zones', 'rings', 'orbs', 'rods', 'later', 'fx', 'texts', 'coins', 'drops']) S[k] = [];
+  S.collectT = null;
   S.timers = {}; S.treant = null; S.treantT = 1; S.surge = { n: 0, t: 0 }; S.phoenixUsed = false;
   for (const w of S.weapons) { w.sumT = 1; w.cd = rnd(0, .3); }
   const boss = S.wave % 10 === 0;
@@ -576,6 +632,7 @@ function startWave() {
   AU.wave = S.wave;
   AU.play(boss ? 'boss' : S.wave > 20 ? 'endless' : 'wave');
   hideScreen();
+  saveRun();
 }
 
 // =====================================================================
@@ -615,7 +672,8 @@ renderAudioBtns();
 function togglePause() {
   paused = !paused;
   if (paused) showScreen(`<div class="panel">
-    <div class="head"><p class="big" style="margin:0">Paused</p><button class="btn go" data-act="resume">Resume</button></div>
+    <div class="head"><p class="big" style="margin:0">Paused</p><div style="display:flex;gap:10px"><button class="btn" data-act="quit">Save &amp; quit</button><button class="btn go" data-act="resume">Resume</button></div></div>
+    <p class="hint">Your run is saved at the start of every wave. Quitting now brings you back to the start of wave ${S.wave}.</p>
     <h3>Element bonuses <span>· own 2 / 4 / 6 of a colour</span></h3>${elemSetsHtml(S.runSets, S.counts)}
     <h3>Weapon type bonuses <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(S.typeSets, S.tcounts)}</div>`);
   else hideScreen();
@@ -857,11 +915,8 @@ function processDeaths() {
   while (S.dying.length && guard++ < 800) {
     const e = S.dying.shift();
     S.kills++;
-    S.gold += e.gold;
-    gainXp(e.xp);
-    AU.play('pop'); AU.play('coin');
-    const n = Math.min(6, Math.ceil(e.gold));
-    for (let i = 0; i < n; i++) S.coins.push({ x: e.x + rnd(-8, 8), y: e.y + rnd(-8, 8), t: -i * .03 });
+    AU.play('pop');
+    dropLoot(e);
     S.fx.push({ k: 'pop', x: e.x, y: e.y, r: e.r, t: 0, life: .25, col: e.col });
     if (e.burnT > 0) { const c = setv('red', 'pyre'); if (c) explode(e.x, e.y, boomR(60), e.maxHp * c / 100, '#ff7a2a', { pierce: true }); }
     if (e.frozen > 0 && setStage('blue', 'shatter') >= 0) explode(e.x, e.y, E('blue', 'shatterR'), e.maxHp * E('blue', 'shatterPct') / 100, '#bfeaff', { chill: 1, pierce: true });
@@ -871,6 +926,34 @@ function processDeaths() {
     if (e.boss) { S.shake = 14; S.fx.push({ k: 'boom', x: e.x, y: e.y, r: 120, t: 0, life: .6, col: e.col }); AU.play('boom', 1.5); }
   }
   S.enemies = S.enemies.filter(e => !e.dead);
+}
+// ---- loot: enemies drop gold & XP that must be collected
+function dropLoot(e) {
+  let xp = e.xp, gold = e.gold;
+  if (S.converted) { xp += gold * GOLD_TO_XP; gold = 0; }
+  const n = gold > 0 ? Math.min(3, Math.max(1, Math.round(gold / 2))) : 0;
+  for (let i = 0; i < n; i++) addDrop('gold', gold / n, e.x, e.y);
+  if (xp > 0) addDrop('xp', xp, e.x, e.y);
+}
+function addDrop(k, v, x, y) {
+  if (S.drops.length > 280) { const o = S.drops.find(d => d.k === k && !d.mag); if (o) { o.v += v; return; } }
+  const l = Math.hypot(x, y); if (l > R - 10) { x *= (R - 10) / l; y *= (R - 10) / l; }
+  const a = Math.random() * TAU, sp = rnd(40, 110);
+  S.drops.push({ k, v, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, mag: false, ph: Math.random() * TAU });
+}
+function updateDrops(dt) {
+  const p = S.p, pr = tot.pickR * (S.collectT !== null ? 1.6 : 1);
+  for (const d of S.drops) {
+    d.x += d.vx * dt; d.y += d.vy * dt; d.vx *= Math.max(0, 1 - dt * 5); d.vy *= Math.max(0, 1 - dt * 5);
+    const dx = p.x - d.x, dy = p.y - d.y, dist = Math.hypot(dx, dy) || 1;
+    if (dist < pr) d.mag = true;
+    if (d.mag) { const sp = 420 + (S.collectT !== null ? 300 : 0); d.x += dx / dist * sp * dt; d.y += dy / dist * sp * dt; }
+    if (dist < PR + 7) {
+      d.got = true;
+      if (d.k === 'gold') { S.gold += d.v; AU.play('coin'); } else { gainXp(d.v); AU.play('xp'); }
+    }
+  }
+  S.drops = S.drops.filter(d => !d.got);
 }
 function gainXp(n) {
   S.xp += n;
@@ -1212,11 +1295,16 @@ function update(dt) {
 
   processDeaths();
 
-  for (const c of S.coins) { c.t += dt; if (c.t < 0) continue; const k = Math.min(1, c.t / .35); c.x += (p.x - c.x) * k * .35; c.y += (p.y - c.y) * k * .35; }
+  updateDrops(dt);
   S.coins = S.coins.filter(c => c.t < .4);
   updateFx(dt);
 
-  if (S.toSpawn <= 0 && !S.bossPending && S.enemies.length === 0) endWave();
+  if (S.toSpawn <= 0 && !S.bossPending && S.enemies.length === 0) {
+    // short window to grab what's on the floor; the rest is lost
+    if (S.collectT === null) S.collectT = S.drops.length ? 3 : 0;
+    S.collectT -= dt;
+    if (S.collectT <= 0 || S.drops.length === 0) endWave();
+  }
 }
 function updateFx(dt) {
   for (const f of S.fx) { f.t += dt; if (f.k === 'spark') { f.x += f.vx * dt; f.y += f.vy * dt; } }
@@ -1243,20 +1331,25 @@ function showScreen(html, key) {
 function hideScreen() { screen.classList.remove('show'); screen.innerHTML = ''; screen.dataset.key = ''; }
 
 function endWave() {
-  S.gold += 4 + S.wave * 2;
+  const lost = { gold: 0, xp: 0 };
+  for (const d of S.drops) lost[d.k] += d.v;
+  S.lastLost = (lost.gold >= 1 || lost.xp >= 1) ? { gold: Math.floor(lost.gold), xp: Math.floor(lost.xp) } : null;
+  S.drops = [];
+  if (!S.converted) S.gold += 4 + S.wave * 2;
   S.sprouts = []; S.treant = null;
   saveBest();
   nextMenu();
 }
 function nextMenu() {
   if (S.pendingLv > 0) { S.phase = 'levelup'; S.perkOffer = rollLevelCards(); renderLevelUp(); }
+  else if (S.converted) { S.phase = 'shop'; S.offers = []; renderShop(); }
   else { S.phase = 'shop'; S.rerolls = 0; S.rerollCost = rerollPrice(); S.offers = rollOffers(); renderShop(); }
 }
 
 function elemSetsHtml(sets, counts) {
   return `<div class="sets e4">${ORDER.map(c => {
     const n = (counts && counts[c]) || 0;
-    return `<div class="rs" style="--c:${COL[c]}"><div class="h"><span>${ELEM[c]}</span><span>${counts ? n + ' / 6' : ''}</span></div>
+    return `<div class="rs ${counts && n ? 'own' : ''}" style="--c:${COL[c]}"><div class="h"><span>${ELEM[c]}</span><span>${counts ? n + ' / 6' : ''}</span></div>
       ${sets[c].map((e, i) => `<div class="e ${n >= ETHRESH[i] ? 'on' : ''}"><span class="pips">${'◆'.repeat(i + 1)}${'◇'.repeat(2 - i)}</span><b>(${ETHRESH[i]}) ${e.name}</b><br>${e.d(e, i)}</div>`).join('')}
     </div>`;
   }).join('')}</div>`;
@@ -1264,7 +1357,8 @@ function elemSetsHtml(sets, counts) {
 function typeSetsHtml(tsets, counts) {
   return `<div class="sets t5">${TYPE_KEYS.map(t => {
     const n = (counts && counts[t]) || 0;
-    return `<div class="rs" style="--c:${COL.steel}"><div class="h"><span>${svg(t, COL.steel)}${TYPES[t].n}</span><span>${counts ? n + ' / 6' : ''}</span></div>
+    const own = counts && n > 0, c = own ? '#f2c14e' : COL.steel;
+    return `<div class="rs ${own ? 'own' : ''}" style="--c:${c}"><div class="h"><span>${svg(t, c)}${TYPES[t].n}</span><span>${counts ? n + ' / 6' : ''}</span></div>
       ${tsets[t].map((k, i) => `<div class="e ${n >= TTHRESH[i] ? 'on' : ''}"><b>(${TTHRESH[i]})</b> ${statText(k, STAT[k].set)}</div>`).join('')}
     </div>`;
   }).join('')}</div>`;
@@ -1307,7 +1401,9 @@ function secHtml(sec) {
     <em>${unit(cur, d.u)} → ${unit(next, d.u)}${next >= d.cap ? ' · MAXED' : ` · max ${unit(d.cap, d.u)}`}</em></div>`;
 }
 function renderLevelUp() {
-  showScreen(`<div class="panel" style="width:min(880px,100%)">
+  saveRun();
+  const conv = S.convertedInfo && S.wave === 20 ? `<div class="note endless"><b>Endless begins.</b> Your ${S.convertedInfo.gold} gold became ${S.convertedInfo.xp} XP. The shop is closed from here on: kills drop extra XP instead of gold.</div>` : '';
+  showScreen(`<div class="panel" style="width:min(880px,100%)">${conv}
     <div class="head"><h2 style="color:var(--xp)">Level up</h2><span class="hint">${S.pendingLv > 1 ? S.pendingLv + ' level-ups to spend' : 'Choose one'}</span></div>
     <h3>Upgrades</h3>
     <div class="cards">${S.perkOffer.map((c, i) => `<button class="card" style="--c:${c.sec ? COL[c.sec.c] : '#555'}" data-act="perk:${i}">
@@ -1353,7 +1449,10 @@ function weaponCard(w, attrs, footer) {
   </button>`;
 }
 function renderShop() {
+  saveRun();
+  const endless = S.converted;
   const g = Math.floor(S.gold), full = S.weapons.length >= 6;
+  const lost = S.lastLost ? `<div class="note">Left on the floor last wave: ${S.lastLost.gold ? S.lastLost.gold + ' gold' : ''}${S.lastLost.gold && S.lastLost.xp ? ' and ' : ''}${S.lastLost.xp ? S.lastLost.xp + ' XP' : ''}. Pick loot up before the collect timer runs out!</div>` : '';
   const offers = S.offers.map((o, i) => {
     if (!o) return `<div class="card off" style="--c:#333;justify-content:center;align-items:center;min-height:120px"><span class="hint">Sold</span></div>`;
     const pr = priceOf(o.tier), can = g >= pr && !full;
@@ -1362,17 +1461,19 @@ function renderShop() {
   const owned = [...S.weapons.map(w => {
     const uc = w.tier < 3 ? upCost(w.tier) : 0;
     return `<div class="wrow">${svg(w.type, COL[w.el])}<span class="n">${wName(w)} <span style="color:${COL[w.el]}">${ROMAN[w.tier]}</span><small>${afxShort(w)}</small></span>
-      ${w.tier < 3 ? `<button class="btn sm" data-act="up:${w.id}" ${g < uc ? 'disabled' : ''}>Upgrade <span class="gc">●</span> ${uc}</button>` : `<span class="hint" style="font-size:12px">MAX</span>`}
-      <button class="btn sm" data-act="sell:${w.id}" ${S.weapons.length <= 1 ? 'disabled' : ''}>Sell +${sellVal(w.tier)}</button></div>`;
+      ${endless ? '' : w.tier < 3 ? `<button class="btn sm" data-act="up:${w.id}" ${g < uc ? 'disabled' : ''}>Upgrade <span class="gc">●</span> ${uc}</button>` : `<span class="hint" style="font-size:12px">MAX</span>`}
+      ${endless ? '' : `<button class="btn sm" data-act="sell:${w.id}" ${S.weapons.length <= 1 ? 'disabled' : ''}>Sell +${sellVal(w.tier)}</button>`}</div>`;
   }), ...Array(6 - S.weapons.length).fill('<div class="wrow empty">Empty slot</div>')].join('');
   showScreen(`<div class="panel">
-    <div class="head"><h2>Shop <span class="hint" style="font-size:14px;letter-spacing:.05em;text-transform:none">· wave ${S.wave} cleared</span></h2>
-      <div style="display:flex;align-items:center;gap:18px"><div class="goldbox">${g}</div>
+    <div class="head"><h2>${endless ? 'Endless' : 'Shop'} <span class="hint" style="font-size:14px;letter-spacing:.05em;text-transform:none">· wave ${S.wave} cleared</span></h2>
+      <div style="display:flex;align-items:center;gap:18px">${endless ? '' : `<div class="goldbox">${g}</div>`}
       <button class="btn go" data-act="next">Wave ${S.wave + 1}${(S.wave + 1) % 10 === 0 ? ' · Boss' : S.wave + 1 === 21 ? ' · Endless' : ''} ▶</button></div></div>
+    ${S.wave === 20 && !endless ? '<div class="note endless"><b>Next wave starts endless mode.</b> Any gold you haven\'t spent will be converted into XP (2 gold = 1 XP), and the shop closes for good.</div>' : ''}
+    ${lost}
     <div class="shopgrid">
-      <div>
+      <div>${endless ? `<div class="note endless" style="margin-top:16px"><b>The shop is closed.</b> Gold turned into XP when endless began, and every kill now drops extra XP instead. Your build grows through level-ups from here.${S.convertedInfo ? `<br>Converted: ${S.convertedInfo.gold} gold → ${S.convertedInfo.xp} XP.` : ''}</div>` : `
         <h3>For sale</h3><div class="offers">${offers}</div>
-        <div style="margin-top:10px"><button class="btn" data-act="reroll" ${g < S.rerollCost ? 'disabled' : ''}>Reroll <span class="gc">●</span> ${S.rerollCost}</button></div>
+        <div style="margin-top:10px"><button class="btn" data-act="reroll" ${g < S.rerollCost ? 'disabled' : ''}>Reroll <span class="gc">●</span> ${S.rerollCost}</button></div>`}
       </div>
       <div>
         <h3>Weapons ${S.weapons.length}/6 <span>· upgrading also boosts a weapon's own stats</span></h3><div class="owned">${owned}</div>
@@ -1394,7 +1495,7 @@ function statsHtml() {
     <span>Crit <b>${fmt(tot.crit)}%</b></span><span>Crit dmg <b>${Math.round(tot.critMult * 100)}%</b></span><span>Atk speed <b>+${fmt(tot.atkSpd)}%</b></span>
     <span>Armor <b>${fmt(tot.armor)}</b></span><span>Penetration <b>${fmt(tot.pen)}</b></span><span>Stun <b>${fmt(tot.stun)}%</b></span>
     <span>Regen <b>${fmt(tot.regen)}/s</b></span><span>Move <b>+${fmt(tot.speed)}%</b></span><span>Range <b>+${fmt(tot.range)}%</b></span>
-    <span>Knockback <b>${fmt(tot.knock)}%</b></span><span>Life steal <b>${fmt(tot.leech)}%</b></span>
+    <span>Knockback <b>${fmt(tot.knock)}%</b></span><span>Life steal <b>${fmt(tot.leech)}%</b></span><span>Pickup <b>+${fmt(tot.pickup)}%</b></span>
   </div>${passives ? `<div class="chips">${passives}</div>` : ''}`;
 }
 
@@ -1403,10 +1504,14 @@ function bestWave() { try { return +localStorage.getItem('lastCircleBest3') || 0
 function saveBest() { try { if (S.wave > bestWave()) localStorage.setItem('lastCircleBest3', S.wave); } catch (e) {} }
 function renderStart() {
   if (!pendingRun) pendingRun = rollRun();
-  const b = bestWave();
+  const b = bestWave(), sv = loadSave();
+  const cont = sv ? `<div class="note" style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 0">
+      <span><b>Saved run:</b> wave ${sv.phase === 'fight' ? sv.wave : sv.wave + 1}${sv.wave >= 20 ? ' (endless)' : ''} · level ${sv.level} · ${sv.weapons.length} weapon${sv.weapons.length > 1 ? 's' : ''}<br><span class="hint">Starting a new run below replaces it.</span></span>
+      <button class="btn go" data-act="continue">Continue ▶</button></div>` : '';
   showScreen(`<div class="panel">
     <div class="head"><div><h1>Last <em>Circle</em></h1><p class="sub">You can't leave the circle. They're coming in. How long can you hold?</p></div>
       <div style="display:flex;gap:14px;align-items:center">${b ? `<span class="hint">Best: wave ${b}</span>` : ''}<button class="btn" data-act="reroll-run">Roll a different run</button></div></div>
+    ${cont}
     <h3>Choose your first weapon</h3>
     <div class="cards">${pendingRun.starters.map((w, i) => weaponCard(w, `data-act="start:${i}"`)).join('')}</div>
     <h3>This run's element bonuses <span>· own 2 / 4 / 6 of a colour · rolled fresh every run</span></h3>
@@ -1417,7 +1522,7 @@ function renderStart() {
   </div>`, 'start');
 }
 function gameOver() {
-  S.phase = 'dead'; S.p.hp = 0; saveBest();
+  S.phase = 'dead'; S.p.hp = 0; saveBest(); clearSave();
   AU.play('death');
   showScreen(`<div class="panel center" style="width:min(520px,100%)">
     <p class="big" style="color:var(--hp)">Fallen</p>
@@ -1434,7 +1539,9 @@ screen.addEventListener('click', e => {
   const [act, arg] = b.dataset.act.split(':');
   if (act === 'start') { const st = pendingRun.starters[+arg]; newRun(st); pendingRun = null; return; }
   if (act === 'reroll-run') { AU.play('click'); pendingRun = rollRun(); renderStart(); return; }
-  if (act === 'restart') { S = null; document.getElementById('hud').classList.add('hidden'); document.getElementById('slots').classList.add('hidden'); renderStart(); return; }
+  if (act === 'restart') { S = null; showHud(false); renderStart(); return; }
+  if (act === 'continue') { const d = loadSave(); if (d) { pendingRun = null; resumeRun(d); } return; }
+  if (act === 'quit') { paused = false; S = null; showHud(false); renderStart(); return; }
   if (act === 'resume') { togglePause(); return; }
   if (act === 'perk') { choosePerk(+arg); return; }
   if (act === 'next') { startWave(); return; }
@@ -1515,8 +1622,20 @@ function draw() {
     cx.strokeStyle = `rgba(190,234,255,${.35 * a})`; cx.lineWidth = 1.5; cx.setLineDash([3, 5]); cx.beginPath(); cx.arc(pi.x, pi.y, pi.r, 0, TAU); cx.stroke(); cx.setLineDash([]);
   }
 
-  cx.fillStyle = '#f2c14e';
-  for (const c of S.coins) { if (c.t < 0) continue; cx.beginPath(); cx.arc(c.x, c.y, 3, 0, TAU); cx.fill(); }
+  for (const d of S.drops) {
+    const blink = S.collectT !== null && S.collectT < 1.2 && Math.floor(S.collectT * 10) % 2 === 0;
+    if (blink) continue;
+    const b = 1 + Math.sin(T * 6 + d.ph) * .15;
+    if (d.k === 'gold') {
+      cx.fillStyle = 'rgba(242,193,78,.22)'; cx.beginPath(); cx.arc(d.x, d.y, 10 * b, 0, TAU); cx.fill();
+      cx.fillStyle = '#f2c14e'; cx.beginPath(); cx.arc(d.x, d.y, 5, 0, TAU); cx.fill();
+      cx.fillStyle = '#fff2c4'; cx.beginPath(); cx.arc(d.x - 1.4, d.y - 1.4, 1.6, 0, TAU); cx.fill();
+    } else {
+      const s2 = 5.5 * b * (d.v >= 4 ? 1.35 : 1);
+      cx.fillStyle = 'rgba(155,140,255,.2)'; cx.beginPath(); cx.arc(d.x, d.y, s2 * 2, 0, TAU); cx.fill();
+      cx.fillStyle = '#b4a8ff'; cx.beginPath(); cx.moveTo(d.x, d.y - s2); cx.lineTo(d.x + s2, d.y); cx.lineTo(d.x, d.y + s2); cx.lineTo(d.x - s2, d.y); cx.closePath(); cx.fill();
+    }
+  }
 
   for (const e of S.enemies) drawEnemy(e, T);
 
@@ -1661,6 +1780,10 @@ function draw() {
     cx.fillStyle = '#1a1c24'; cx.fillRect(x, y, w, 10);
     cx.fillStyle = '#c8436a'; cx.fillRect(x, y, w * Math.max(0, boss.hp / boss.maxHp), 10);
     cx.font = '600 12px "Chakra Petch"'; cx.fillStyle = '#e4e1d8'; cx.textAlign = 'center'; cx.fillText('THE HOLLOW KING', VW / 2, y - 9);
+  }
+  if (S.collectT !== null && S.collectT > 0 && S.phase === 'fight') {
+    cx.font = `700 ${Math.min(30, VW / 18)}px "Chakra Petch"`; cx.textAlign = 'center';
+    cx.fillStyle = '#f2c14e'; cx.fillText(`COLLECT · ${S.collectT.toFixed(1)}s`, VW / 2, VH * .22);
   }
   if (S.banner) {
     const a = S.banner.t < .3 ? S.banner.t / .3 : S.banner.t > 1.7 ? (2.2 - S.banner.t) / .5 : 1;
