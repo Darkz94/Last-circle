@@ -104,9 +104,11 @@ function golemContact(g, e) {
   let eff = 1 + b * tot.dmgPct / 100 + b * tot.flat / 20;
   const crit = Math.random() * 100 < tot.crit * b;
   if (crit) eff *= 1 + b * (tot.critMult - 1);
-  const d = Math.min(g.hp * eff, e.hp);
+  // bosses and elites shrug off part of a golem's charge (the golem still spends its full HP)
+  const tough = e.boss ? .4 : e.elite ? .6 : 1;
+  const d = Math.min(g.hp * eff * tough, e.hp);
   dmg(e, d, { col: g.thrall ? ICE : COL.green, tr: true, src: 'golem', crit });
-  g.hp -= d / eff;
+  g.hp -= d / eff / tough;
   sfx(g.thrall ? 'hit_blue' : 'hit_green');
   FX({ k: 'ring', x: g.x, y: g.y, r: g.big ? 18 : 10, life: .2, col: g.thrall ? ICE : COL.green });
   if (!g.thrall) emit('gHit', g, e, d);

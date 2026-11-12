@@ -257,6 +257,7 @@ function drawEnemy(c, e, T) {
       c.fillStyle = lite; c.beginPath(); c.moveTo(r * 1.9, 0); c.lineTo(r * .9, r * .3); c.lineTo(r * .9, -r * .3); c.closePath(); c.fill();
       c.fillStyle = eye; c.beginPath(); c.arc(r * .25, 0, r * .2, 0, TAU); c.fill(); break; }
     case 'boss': {
+      if (e.enraged) { c.fillStyle = `rgba(255,40,60,${.18 + Math.sin(T * 9) * .08})`; c.beginPath(); c.arc(0, 0, r * 1.45, 0, TAU); c.fill(); }
       c.fillStyle = '#f2c14e'; for (const sx of [-1, 0, 1]) { c.beginPath(); c.moveTo(sx * r * .45 - r * .2, -r * .8); c.lineTo(sx * r * .45, -r * (sx ? 1.3 : 1.5)); c.lineTo(sx * r * .45 + r * .2, -r * .8); c.closePath(); c.fill(); }
       c.fillStyle = base; c.lineWidth = 3;
       c.beginPath(); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + T * .4, rr = i % 2 ? r * .8 : r * 1.06; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.fill(); c.stroke();

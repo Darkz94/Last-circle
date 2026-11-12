@@ -161,7 +161,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 8;
+const GAME_VERSION = 9;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -498,7 +498,7 @@ const ETYPES = {
   swarm:   { r: 7,  hp: 5,    spd: 100, dmg: 4,  gold: 1,  xp: .5, col: '#a590c8', shape: 'swarm' },
   brute:   { r: 22, hp: 75,   spd: 42,  dmg: 16, gold: 5,  xp: 4,  col: '#5d4a72', shape: 'brute', arm: 2 },
   charger: { r: 14, hp: 30,   spd: 55,  dmg: 14, gold: 3,  xp: 2,  col: '#b75fc4', shape: 'charger' },
-  boss:    { r: 44, hp: 1300, spd: 46,  dmg: 28, gold: 80, xp: 40, col: '#c8436a', shape: 'boss', arm: 2 },
+  boss:    { r: 44, hp: 1300, spd: 50,  dmg: 28, gold: 120, xp: 60, col: '#c8436a', shape: 'boss', arm: 2.5 },
   goblin:  { r: 11, hp: 45,   spd: 150, dmg: 0,  gold: 0,  xp: 4,  col: '#e0b84a', shape: 'goblin', special: true },
   altar:   { r: 18, hp: 90,   spd: 0,   dmg: 0,  gold: 8,  xp: 6,  col: '#6a2c7e', shape: 'altar', special: true },
 };
@@ -514,6 +514,7 @@ const BUFFS = [
 
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
+const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
@@ -1173,9 +1174,11 @@ function golemContact(g, e) {
   let eff = 1 + b * tot.dmgPct / 100 + b * tot.flat / 20;
   const crit = Math.random() * 100 < tot.crit * b;
   if (crit) eff *= 1 + b * (tot.critMult - 1);
-  const d = Math.min(g.hp * eff, e.hp);
+  // bosses and elites shrug off part of a golem's charge (the golem still spends its full HP)
+  const tough = e.boss ? .4 : e.elite ? .6 : 1;
+  const d = Math.min(g.hp * eff * tough, e.hp);
   dmg(e, d, { col: g.thrall ? ICE : COL.green, tr: true, src: 'golem', crit });
-  g.hp -= d / eff;
+  g.hp -= d / eff / tough;
   sfx(g.thrall ? 'hit_blue' : 'hit_green');
   FX({ k: 'ring', x: g.x, y: g.y, r: g.big ? 18 : 10, life: .2, col: g.thrall ? ICE : COL.green });
   if (!g.thrall) emit('gHit', g, e, d);
@@ -1223,7 +1226,7 @@ function updGolems(dt) {
 // ===== the world: enemies, projectiles, zones, elemental summons, arena events
 function spawnEnemy(type, x, y) {
   const d = ETYPES[type], w = S.wave;
-  const hp = d.hp * (type === 'boss' ? (w / 10) * (w > 20 ? Math.pow(1.31, w - 20) : 1) * 1.6 : hpMult(w));
+  const hp = type === 'boss' ? BOSS_HP * hpMult(w) : d.hp * hpMult(w);   // boss = about 3x an elite brute
   if (x === undefined) { const a = Math.random() * TAU; x = Math.cos(a) * SPAWN_R; y = Math.sin(a) * SPAWN_R; }
   const e = {
     id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
@@ -1282,9 +1285,18 @@ function updEnemies(dt) {
       else if (e.mode === 'wind') { sp = 0; e.modeT -= dt; e.dx = vx; e.dy = vy; if (e.modeT <= 0) { e.mode = 'dash'; e.modeT = .4; } }
       else if (e.mode === 'dash') { vx = e.dx; vy = e.dy; sp = 430 * sm; e.modeT -= dt; if (e.modeT <= 0) { e.mode = 'walk'; e.dashCd = rnd(2.2, 3.2); } }
     } else if (e.boss && !held) {
-      e.summonT -= dt; if (e.summonT <= 0) { e.summonT = 5; for (let i = 0; i < 3; i++) spawnEnemy('grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); }
-      // ground slam: a telegraphed circle you have to step out of
-      e.slamT -= dt; if (e.slamT <= 0 && Math.hypot(e.x, e.y) < R) { e.slamT = 6; S.tele.push({ x: e.x, y: e.y, r: 125, t: 0, life: 1, dmg: e.dmg * 1.3 }); sfx('tele'); }
+      // phase two at half health: enraged, faster, slams more often, calls brutes
+      if (!e.enraged && e.hp < e.maxHp * .5) { e.enraged = true; e.spd *= 1.3; e.dmg *= 1.2; banner('The Hollow King is enraged!', true); sfx('boss'); S.shake = Math.min(7, S.shake + 4); FX({ k: 'boom', x: e.x, y: e.y, r: 90, life: .6, col: '#ff3b4e' }); }
+      e.summonT -= dt;
+      if (e.summonT <= 0) { e.summonT = e.enraged ? 4 : 5; for (let i = 0; i < 3; i++) spawnEnemy(e.enraged && i === 0 ? 'brute' : 'grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); }
+      // ground slam: a telegraphed circle you have to step out of; when enraged it also slams where you stand
+      e.slamT -= dt;
+      if (e.slamT <= 0 && Math.hypot(e.x, e.y) < R) {
+        e.slamT = e.enraged ? 3.5 : 5.5;
+        S.tele.push({ x: e.x, y: e.y, r: 125, t: 0, life: 1, dmg: e.dmg * .8 });
+        if (e.enraged) S.tele.push({ x: p.x, y: p.y, r: 65, t: 0, life: 1.2, dmg: e.dmg * .6 });
+        sfx('tele');
+      }
     }
     e.x += vx * sp * dt + e.kx * Math.min(1, dt * 12); e.y += vy * sp * dt + e.ky * Math.min(1, dt * 12);
     e.kx *= Math.max(0, 1 - dt * 12); e.ky *= Math.max(0, 1 - dt * 12);
@@ -1925,6 +1937,7 @@ function drawEnemy(c, e, T) {
       c.fillStyle = lite; c.beginPath(); c.moveTo(r * 1.9, 0); c.lineTo(r * .9, r * .3); c.lineTo(r * .9, -r * .3); c.closePath(); c.fill();
       c.fillStyle = eye; c.beginPath(); c.arc(r * .25, 0, r * .2, 0, TAU); c.fill(); break; }
     case 'boss': {
+      if (e.enraged) { c.fillStyle = `rgba(255,40,60,${.18 + Math.sin(T * 9) * .08})`; c.beginPath(); c.arc(0, 0, r * 1.45, 0, TAU); c.fill(); }
       c.fillStyle = '#f2c14e'; for (const sx of [-1, 0, 1]) { c.beginPath(); c.moveTo(sx * r * .45 - r * .2, -r * .8); c.lineTo(sx * r * .45, -r * (sx ? 1.3 : 1.5)); c.lineTo(sx * r * .45 + r * .2, -r * .8); c.closePath(); c.fill(); }
       c.fillStyle = base; c.lineWidth = 3;
       c.beginPath(); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + T * .4, rr = i % 2 ? r * .8 : r * 1.06; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.fill(); c.stroke();

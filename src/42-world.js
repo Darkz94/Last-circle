@@ -1,7 +1,7 @@
 // ===== the world: enemies, projectiles, zones, elemental summons, arena events
 function spawnEnemy(type, x, y) {
   const d = ETYPES[type], w = S.wave;
-  const hp = d.hp * (type === 'boss' ? (w / 10) * (w > 20 ? Math.pow(1.31, w - 20) : 1) * 1.6 : hpMult(w));
+  const hp = type === 'boss' ? BOSS_HP * hpMult(w) : d.hp * hpMult(w);   // boss = about 3x an elite brute
   if (x === undefined) { const a = Math.random() * TAU; x = Math.cos(a) * SPAWN_R; y = Math.sin(a) * SPAWN_R; }
   const e = {
     id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
@@ -60,9 +60,18 @@ function updEnemies(dt) {
       else if (e.mode === 'wind') { sp = 0; e.modeT -= dt; e.dx = vx; e.dy = vy; if (e.modeT <= 0) { e.mode = 'dash'; e.modeT = .4; } }
       else if (e.mode === 'dash') { vx = e.dx; vy = e.dy; sp = 430 * sm; e.modeT -= dt; if (e.modeT <= 0) { e.mode = 'walk'; e.dashCd = rnd(2.2, 3.2); } }
     } else if (e.boss && !held) {
-      e.summonT -= dt; if (e.summonT <= 0) { e.summonT = 5; for (let i = 0; i < 3; i++) spawnEnemy('grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); }
-      // ground slam: a telegraphed circle you have to step out of
-      e.slamT -= dt; if (e.slamT <= 0 && Math.hypot(e.x, e.y) < R) { e.slamT = 6; S.tele.push({ x: e.x, y: e.y, r: 125, t: 0, life: 1, dmg: e.dmg * 1.3 }); sfx('tele'); }
+      // phase two at half health: enraged, faster, slams more often, calls brutes
+      if (!e.enraged && e.hp < e.maxHp * .5) { e.enraged = true; e.spd *= 1.3; e.dmg *= 1.2; banner('The Hollow King is enraged!', true); sfx('boss'); S.shake = Math.min(7, S.shake + 4); FX({ k: 'boom', x: e.x, y: e.y, r: 90, life: .6, col: '#ff3b4e' }); }
+      e.summonT -= dt;
+      if (e.summonT <= 0) { e.summonT = e.enraged ? 4 : 5; for (let i = 0; i < 3; i++) spawnEnemy(e.enraged && i === 0 ? 'brute' : 'grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); }
+      // ground slam: a telegraphed circle you have to step out of; when enraged it also slams where you stand
+      e.slamT -= dt;
+      if (e.slamT <= 0 && Math.hypot(e.x, e.y) < R) {
+        e.slamT = e.enraged ? 3.5 : 5.5;
+        S.tele.push({ x: e.x, y: e.y, r: 125, t: 0, life: 1, dmg: e.dmg * .8 });
+        if (e.enraged) S.tele.push({ x: p.x, y: p.y, r: 65, t: 0, life: 1.2, dmg: e.dmg * .6 });
+        sfx('tele');
+      }
     }
     e.x += vx * sp * dt + e.kx * Math.min(1, dt * 12); e.y += vy * sp * dt + e.ky * Math.min(1, dt * 12);
     e.kx *= Math.max(0, 1 - dt * 12); e.ky *= Math.max(0, 1 - dt * 12);

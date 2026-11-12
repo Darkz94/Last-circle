@@ -115,7 +115,7 @@ const ETYPES = {
   swarm:   { r: 7,  hp: 5,    spd: 100, dmg: 4,  gold: 1,  xp: .5, col: '#a590c8', shape: 'swarm' },
   brute:   { r: 22, hp: 75,   spd: 42,  dmg: 16, gold: 5,  xp: 4,  col: '#5d4a72', shape: 'brute', arm: 2 },
   charger: { r: 14, hp: 30,   spd: 55,  dmg: 14, gold: 3,  xp: 2,  col: '#b75fc4', shape: 'charger' },
-  boss:    { r: 44, hp: 1300, spd: 46,  dmg: 28, gold: 80, xp: 40, col: '#c8436a', shape: 'boss', arm: 2 },
+  boss:    { r: 44, hp: 1300, spd: 50,  dmg: 28, gold: 120, xp: 60, col: '#c8436a', shape: 'boss', arm: 2.5 },
   goblin:  { r: 11, hp: 45,   spd: 150, dmg: 0,  gold: 0,  xp: 4,  col: '#e0b84a', shape: 'goblin', special: true },
   altar:   { r: 18, hp: 90,   spd: 0,   dmg: 0,  gold: 8,  xp: 6,  col: '#6a2c7e', shape: 'altar', special: true },
 };
@@ -131,6 +131,7 @@ const BUFFS = [
 
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
+const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
