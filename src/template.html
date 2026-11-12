@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#08090d">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Last Circle">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Last Circle</title>
+<style>
+@font-face{font-family:"Chakra Petch";font-style:normal;font-weight:400;font-display:swap;src:url(fonts/chakra-petch-latin-400-normal.woff2) format("woff2")}
+@font-face{font-family:"Chakra Petch";font-style:normal;font-weight:500;font-display:swap;src:url(fonts/chakra-petch-latin-500-normal.woff2) format("woff2")}
+@font-face{font-family:"Chakra Petch";font-style:normal;font-weight:600;font-display:swap;src:url(fonts/chakra-petch-latin-600-normal.woff2) format("woff2")}
+@font-face{font-family:"Chakra Petch";font-style:normal;font-weight:700;font-display:swap;src:url(fonts/chakra-petch-latin-700-normal.woff2) format("woff2")}
+/*CSS*/
+</style>
+</head>
+<body>
+<canvas id="cv"></canvas>
+<div class="hud hidden" id="hud">
+  <div class="bars">
+    <div class="bar"><i id="hpB"></i><span id="hpT"></span></div>
+    <div class="bar xp"><i id="xpB"></i><span id="xpT"></span></div>
+  </div>
+  <div class="wave" id="waveBox"><span id="waveT"></span><small id="leftT"></small></div>
+  <div class="hright"><div class="goldbox" id="goldT">0</div><button id="pauseBtn" class="ib" aria-label="Pause">❚❚</button></div>
+</div>
+<div class="slots hidden" id="slots"></div>
+<div class="screen" id="screen"></div>
+<script>
+(() => {
+"use strict";
+/*JS*/
+})();
+</script>
+<script>
+if ('serviceWorker' in navigator && window.isSecureContext && !window.Capacitor) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>

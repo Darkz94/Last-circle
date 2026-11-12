@@ -25,6 +25,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Build game.html from src
+        run: python3 build.py
+
       - name: Create Capacitor Android project
         run: |
           mkdir -p app/www
