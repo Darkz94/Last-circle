@@ -49,7 +49,7 @@ function addWeapon(w) { S.weapons.push({ ...w, id: S.uid++, cd: rnd(0, .3), sumT
 const sv = (id, k = 'v') => { const s = S.on[id]; return s === undefined ? 0 : AB[id][k][s]; };
 const rel = id => S.relicOn[id] === 1;
 function E(c, k) { const d = EDEF[c][k]; const b = typeof d.base === 'function' ? d.base() : d.base; return Math.min(d.cap, b + (S.ep[c][k] || 0)); }
-const xpNeed = () => 6 + (S.level - 1) * 5;
+const xpNeed = () => Math.round(6 + (S.level - 1) * 5 + (S.level - 1) * (S.level - 1) * .14);
 
 function recalc() {
   S.counts = {}; S.tcounts = {};

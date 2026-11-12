@@ -61,7 +61,7 @@ function updFx(dt) {
   S.pt = S.pt.filter(q => q.t < q.life);
   for (const t of S.texts) { t.t += dt; t.y -= 34 * dt; }
   S.texts = S.texts.filter(t => t.t < .8);
-  S.shake = Math.max(0, S.shake - dt * 30);
+  S.shake = Math.max(0, S.shake - dt * 40);
   S.punch = Math.max(0, S.punch - dt * 5);
   S.hurtFlash = Math.max(0, (S.hurtFlash || 0) - dt);
   if (S.banner) { S.banner.t += dt; if (S.banner.t > 2.4) S.banner = null; }

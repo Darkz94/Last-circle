@@ -58,7 +58,7 @@ const PRIM = [
 ];
 
 // ---- tuning numbers
-const SUMHP = [27, 44, 68, 125];      // golem base HP by Earth weapon tier
+const SUMHP = [22, 42, 74, 140];      // golem base HP by Earth weapon tier
 const SUM_CD = 4;                     // seconds between golem summons per Earth weapon
 const THF = [5, 9, 14, 23];           // flat thorn damage per Earth weapon, by tier
 const EHP = [10, 16, 24, 38];        // max HP per Earth weapon, by tier
@@ -130,11 +130,12 @@ const BUFFS = [
 ];
 
 // ---- difficulty curve: steady to wave 20, brutal after
-function hpMult(w) { let m = 1 + (w - 1) * .6 + Math.max(0, w - 8) * .35; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
-function dmgMult(w) { let m = 1 + (w - 1) * .16; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
+// from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
+function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
+function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
-function waveCount(w) { return Math.round(12 + w * 5 + (w > 20 ? (w - 20) * 12 : 0)); }
+function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 12 : 0)); }
 function enemyPool(w) {
   const l = [['grunt', 5]];
   if (w >= 2) l.push(['runner', 2.5 + w * .1]);

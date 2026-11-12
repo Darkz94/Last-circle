@@ -45,7 +45,7 @@ function draw() {
   const c = cx;
   c.setTransform(DPR, 0, 0, DPR, 0, 0);
   c.fillStyle = '#07080b'; c.fillRect(0, 0, VW, VH);
-  const sh = S ? S.shake : 0, zoom = SC * (1 + (S ? S.punch : 0) * .022);
+  const sh = S ? Math.min(3.5, S.shake * .35) : 0, zoom = SC * (1 + (S ? S.punch : 0) * .012);
   c.setTransform(DPR * zoom, 0, 0, DPR * zoom, (VW / 2 + rnd(-1, 1) * sh) * DPR, (VH / 2 + 14 + rnd(-1, 1) * sh) * DPR);
   const T = S ? S.time : performance.now() / 1000;
   const endless = S && S.wave > 20, bossOn = S && S.enemies.some(e => e.boss);
