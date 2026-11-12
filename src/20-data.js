@@ -132,6 +132,7 @@ const BUFFS = [
 
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
+let GOLD_RATE = .55;    // global scale on gold drops (enemies, goblins, caches)
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }

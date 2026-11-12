@@ -92,7 +92,8 @@ const priceOf = t => Math.round([18, 42, 85, 160][t] * (1 + (S.wave - 1) * .06))
 const upCost = t => Math.round(priceOf(t + 1) * 1.05);
 const evoCost = () => Math.round(priceOf(3) * 1.6);
 const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : 1));
-const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((3 + S.wave) * Math.pow(1.85, S.rerolls));
+let RRF = [5, 1.5, 2];   // reroll: (base + wave*step) * growth^rerollsThisShop
+const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((RRF[0] + S.wave * RRF[1]) * Math.pow(RRF[2], S.rerolls));
 const lvRerollPrice = () => Math.round(60 * Math.pow(2.5, S.lvRerollBuys || 0) * (1 + S.wave * .04));
 const canEvolve = w => w.tier === 3 && !w.evo && (S.counts[w.el] || 0) >= 6;
 function rollTier() {

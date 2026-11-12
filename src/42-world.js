@@ -257,7 +257,7 @@ function updEvents(dt) {
     } else if (ev.k === 'spring') { if (d < ev.r) heal(tot.maxHp * .12 * dt); }
     else if (ev.k === 'cache' && d < 26) {
       ev.life = 0; sfx('buy');
-      const g = (10 + S.wave * 4) * (1 + ((S.buff && S.buff.greed) || 0));
+      const g = (10 + S.wave * 4) * GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0));
       for (let i = 0; i < 8; i++) addDrop('gold', g / 8, ev.x, ev.y);
       for (let i = 0; i < 4; i++) addDrop('xp', (5 + S.wave) / 4, ev.x, ev.y);
     }

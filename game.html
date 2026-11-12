@@ -161,7 +161,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 10;
+const GAME_VERSION = 11;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -515,6 +515,7 @@ const BUFFS = [
 
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
+let GOLD_RATE = .55;    // global scale on gold drops (enemies, goblins, caches)
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
@@ -925,7 +926,8 @@ const priceOf = t => Math.round([18, 42, 85, 160][t] * (1 + (S.wave - 1) * .06))
 const upCost = t => Math.round(priceOf(t + 1) * 1.05);
 const evoCost = () => Math.round(priceOf(3) * 1.6);
 const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : 1));
-const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((3 + S.wave) * Math.pow(1.85, S.rerolls));
+let RRF = [5, 1.5, 2];   // reroll: (base + wave*step) * growth^rerollsThisShop
+const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((RRF[0] + S.wave * RRF[1]) * Math.pow(RRF[2], S.rerolls));
 const lvRerollPrice = () => Math.round(60 * Math.pow(2.5, S.lvRerollBuys || 0) * (1 + S.wave * .04));
 const canEvolve = w => w.tier === 3 && !w.evo && (S.counts[w.el] || 0) >= 6;
 function rollTier() {
@@ -1175,7 +1177,7 @@ function hurt(d, src) {
 
 // ---- loot: enemies drop gold and XP that you have to pick up
 function dropLoot(e) {
-  const gm = (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
+  const gm = GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
   if (e.type === 'goblin') { const g = (20 + S.wave * 8) * gm; for (let i = 0; i < 10; i++) addDrop('gold', g / 10, e.x, e.y); }
   const gold = e.gold * gm, n = gold > 0 ? Math.min(3, Math.max(1, Math.round(gold / 2))) : 0;
   for (let i = 0; i < n; i++) addDrop('gold', gold / n, e.x, e.y);
@@ -1641,7 +1643,7 @@ function updEvents(dt) {
     } else if (ev.k === 'spring') { if (d < ev.r) heal(tot.maxHp * .12 * dt); }
     else if (ev.k === 'cache' && d < 26) {
       ev.life = 0; sfx('buy');
-      const g = (10 + S.wave * 4) * (1 + ((S.buff && S.buff.greed) || 0));
+      const g = (10 + S.wave * 4) * GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0));
       for (let i = 0; i < 8; i++) addDrop('gold', g / 8, ev.x, ev.y);
       for (let i = 0; i < 4; i++) addDrop('xp', (5 + S.wave) / 4, ev.x, ev.y);
     }
@@ -2918,7 +2920,7 @@ function loop(now) {
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
     rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, choosePerk, takeRelic,
-    SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest };
+    SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 resize();
 requestAnimationFrame(loop);

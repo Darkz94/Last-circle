@@ -186,7 +186,7 @@ function hurt(d, src) {
 
 // ---- loot: enemies drop gold and XP that you have to pick up
 function dropLoot(e) {
-  const gm = (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
+  const gm = GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
   if (e.type === 'goblin') { const g = (20 + S.wave * 8) * gm; for (let i = 0; i < 10; i++) addDrop('gold', g / 10, e.x, e.y); }
   const gold = e.gold * gm, n = gold > 0 ? Math.min(3, Math.max(1, Math.round(gold / 2))) : 0;
   for (let i = 0; i < n; i++) addDrop('gold', gold / n, e.x, e.y);
