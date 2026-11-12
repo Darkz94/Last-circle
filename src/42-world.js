@@ -6,7 +6,7 @@ function spawnEnemy(type, x, y) {
   const e = {
     id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
-    col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, elite: false,
+    col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
     atkCd: 0, hitT: 0, burnT: 0, burnDps: 0, burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
     summonT: 4, slamT: 5, wob: Math.random() * TAU, dead: false, mode: 'walk', modeT: 0, dashCd: rnd(1, 3), dx: 0, dy: 0, kx: 0, ky: 0, escT: 10,
     dnAcc: 0, dnT: 0, dnCol: '#fff', dnCrit: false,
@@ -15,7 +15,7 @@ function spawnEnemy(type, x, y) {
   return e;
 }
 function updSpawner(dt) {
-  if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; spawnEnemy('boss'); S.shake = 10; } }
+  if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; S.lastBossKey = bossKeyFor(S.wave); spawnBoss(S.lastBossKey); S.shake = 6; } }
   if (S.toSpawn <= 0) return;
   S.spawnT -= dt;
   if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 150 : 110)) return;
@@ -35,7 +35,7 @@ function updEnemies(dt) {
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
       e.burnT -= dt; e.burnTick -= dt;
-      if (e.burnTick <= 0) { e.burnTick = .5; dmg(e, e.burnDps * .5, { col: '#ff8a4a', pierce: true }); }
+      if (e.burnTick <= 0) { e.burnTick = .5; const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1; dmg(e, e.burnDps * .5 * fx2, { col: '#ff8a4a', pierce: true, dot: true }); }
       if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
       if (e.burnT <= 0) e.burnDps = 0;
       if (e.dead) continue;
@@ -43,9 +43,12 @@ function updEnemies(dt) {
     const held = e.frozen > 0 || e.stun > 0;
     const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
     let vx = dx / d, vy = dy / d;
-    let sm = (e.chill > 0 ? 1 - slow : 1) * (ff && e.burnT > 0 ? .7 : 1);
+    let sm = (e.chill > 0 ? 1 - slow : 1) * ((ff || syn('frostfire2') >= 0) && e.burnT > 0 ? .7 : 1);
     let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1);
-    if (e.type === 'altar') { sp = 0; e.kx = e.ky = 0; if (e.ax === undefined) { e.ax = e.x; e.ay = e.y; } e.x = e.ax; e.y = e.ay; }   // altars never move
+    if (e.fixed) {   // altars and eggs never move
+      sp = 0; e.kx = e.ky = 0; if (e.ax === undefined) { e.ax = e.x; e.ay = e.y; } e.x = e.ax; e.y = e.ay;
+      if (e.type === 'egg' && (e.hatchT -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '#d9c7a0', 12, 120, .4); sfx('pop'); for (let i = 0; i < 5; i++) spawnEnemy('swarm', e.x + rnd(-14, 14), e.y + rnd(-14, 14)); spawnEnemy('runner', e.x, e.y); continue; }
+    }
     else if (e.type === 'goblin') {
       // runs away from you around the inside of the circle, then escapes
       e.escT -= dt;
@@ -59,28 +62,18 @@ function updEnemies(dt) {
       else if (e.mode === 'walk' && e.dashCd <= 0 && d < 240 && Math.hypot(e.x, e.y) < R + 10) { e.mode = 'wind'; e.modeT = .5; }
       else if (e.mode === 'wind') { sp = 0; e.modeT -= dt; e.dx = vx; e.dy = vy; if (e.modeT <= 0) { e.mode = 'dash'; e.modeT = .4; } }
       else if (e.mode === 'dash') { vx = e.dx; vy = e.dy; sp = 430 * sm; e.modeT -= dt; if (e.modeT <= 0) { e.mode = 'walk'; e.dashCd = rnd(2.2, 3.2); } }
-    } else if (e.boss && !held) {
-      // phase two at half health: enraged, faster, slams more often, calls brutes
-      if (!e.enraged && e.hp < e.maxHp * .5) { e.enraged = true; e.spd *= 1.3; e.dmg *= 1.2; banner('The Hollow King is enraged!', true); sfx('boss'); S.shake = Math.min(7, S.shake + 4); FX({ k: 'boom', x: e.x, y: e.y, r: 90, life: .6, col: '#ff3b4e' }); }
-      e.summonT -= dt;
-      if (e.summonT <= 0) { e.summonT = e.enraged ? 4 : 5; for (let i = 0; i < 3; i++) spawnEnemy(e.enraged && i === 0 ? 'brute' : 'grunt', e.x + rnd(-30, 30), e.y + rnd(-30, 30)); }
-      // ground slam: a telegraphed circle you have to step out of; when enraged it also slams where you stand
-      e.slamT -= dt;
-      if (e.slamT <= 0 && Math.hypot(e.x, e.y) < R) {
-        e.slamT = e.enraged ? 3.5 : 5.5;
-        S.tele.push({ x: e.x, y: e.y, r: 125, t: 0, life: 1, dmg: e.dmg * .8 });
-        if (e.enraged) S.tele.push({ x: p.x, y: p.y, r: 65, t: 0, life: 1.2, dmg: e.dmg * .6 });
-        sfx('tele');
-      }
+    } else if (e.boss) {
+      const mv = bossStep(e, dt, p, held);
+      if (mv) { vx = mv.vx; vy = mv.vy; sp = mv.sp * sm; } else sp = 0;
     }
     e.x += vx * sp * dt + e.kx * Math.min(1, dt * 12); e.y += vy * sp * dt + e.ky * Math.min(1, dt * 12);
     e.kx *= Math.max(0, 1 - dt * 12); e.ky *= Math.max(0, 1 - dt * 12);
     const far = Math.hypot(e.x, e.y); if (far > SPAWN_R + 40) { e.x *= (SPAWN_R + 40) / far; e.y *= (SPAWN_R + 40) / far; }   // nothing gets lost outside
-    if (!e.boss && e.type !== 'altar') for (const b of S.walls) {
+    if (!e.boss && !e.fixed) for (const b of S.walls) {
       const bx = e.x - b.x, by = e.y - b.y, bd = Math.hypot(bx, by) || 1, mn = e.r + b.r;
       if (bd < mn) { e.x = b.x + bx / bd * mn; e.y = b.y + by / bd * mn; }
     }
-    if (!held && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
+    if (!held && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
   }
   // keep enemies from stacking, and let fire jump between touching enemies
   S.spreadT -= dt;
@@ -94,11 +87,20 @@ function updEnemies(dt) {
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
       if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, src.burnDps); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
-      if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.type === 'altar' ? 0 : a.boss ? .05 : 1, wb = b.type === 'altar' ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
+      if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
   // telegraphed enemy attacks
-  for (const t of S.tele) { t.t += dt; if (t.t >= t.life && !t.done) { t.done = true; FX({ k: 'boom', x: t.x, y: t.y, r: t.r, life: .4, col: '#ff3b4e' }); S.shake = Math.min(12, S.shake + 6); sfx('boom', 1.2); if (Math.hypot(p.x - t.x, p.y - t.y) < t.r + PR) hurt(t.dmg, null); } }
+  for (const t of S.tele) {
+    t.t += dt;
+    if (t.t < t.life || t.done) continue;
+    t.done = true;
+    if (!t.line) { FX({ k: 'boom', x: t.x, y: t.y, r: t.r, life: .4, col: '#ff3b4e' }); S.shake = Math.min(12, S.shake + 4); sfx('boom', 1.2); }
+    if (t.dmg > 0 && !t.line && Math.hypot(p.x - t.x, p.y - t.y) < t.r + PR) hurt(t.dmg, null);
+    if (t.done2) t.done2();
+    if (S.phase !== 'fight') return;
+  }
+  updBossHazards(dt);
   S.tele = S.tele.filter(t => !t.done);
 }
 

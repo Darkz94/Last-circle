@@ -18,9 +18,11 @@ function flushDn(e) { if (e.dnAcc > 0) { addText(e.x + rnd(-5, 5), e.y - e.r - 5
 
 // o: { col, crit, src, pierce (ignore armor), tr (true damage: ignore everything) }
 function dmg(e, amt, o) {
-  if (e.dead) return 0;
+  if (e.dead || e.reviveT > 0) return 0;
   o = o || NO;
   let d = amt;
+  // the Warden's shield blocks 75% of everything that comes from in front of it (burns get through)
+  if (e.bk === 'warden' && !o.dot && Math.abs(angDiff(Math.atan2(S.p.y - e.y, S.p.x - e.x), e.face)) < 1.13) { d *= .4; if (Math.random() < .2) puff(e.x + Math.cos(e.face) * (e.r + 8), e.y + Math.sin(e.face) * (e.r + 8), '#f2c14e', 3, 90, .25); }
   if (!o.tr) {
     let m = 1;
     if (e.burnT > 0) m *= 1 + E('red', 'vsBurn') / 100;
@@ -34,16 +36,23 @@ function dmg(e, amt, o) {
   if (e.hp <= .001) { e.dead = true; e.killer = o.src; flushDn(e); S.dying.push(e); }
   return d;
 }
+let inSteam = false;
 const isCold = e => e.chill > 0 || e.frozen > 0 || (e.burnT > 0 && rel('frostfire'));
 const burnFrom = hit => hit * .38 * E('red', 'burn') / 100;
 function burn(e, dps, dur) {
   if (e.dead) return;
+  if (e.frozen > 0 && !inSteam && syn('thermal') >= 0) {
+    // Thermal Shock: fire on a frozen enemy bursts into steam
+    inSteam = true; e.frozen = 0;
+    boom(e.x, e.y, 60, S.avg * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, freezeCh: syn('thermal') ? 100 : 0 });
+    inSteam = false;
+  }
   if (e.burnT <= 0) sfx('burn');
   e.burnT = Math.max(e.burnT, dur || E('red', 'burnDur'));
   e.burnDps = Math.max(e.burnDps, dps);
 }
 function freeze(e) {
-  if (e.dead || e.type === 'altar') return;
+  if (e.dead || e.fixed) return;
   e.chill = 0;
   e.frozen = E('blue', 'freezeDur') * (e.boss || e.elite ? .35 : 1);
   sfx('freeze');
@@ -56,7 +65,7 @@ function chill(e, n) {
   if (e.chill >= 4) freeze(e);
 }
 function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
-function knock(e, ang, f) { if (e.dead || e.boss || e.type === 'altar') return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
+function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
 const boomR = r => r * E('red', 'boomR') / 100;
 function eachNear(x, y, r, fn) { grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
 function boom(x, y, rad, amt, col, o) {
@@ -64,6 +73,12 @@ function boom(x, y, rad, amt, col, o) {
   FX({ k: 'boom', x, y, r: rad, life: .35, col });
   if (!o.small) { S.shake = Math.min(5, S.shake + 1.2); puff(x, y, col, 8, rad * 2.2, .4); if (rad > 80) hitstop(.035); }
   if (!o.quiet) sfx('boom', o.small ? .5 : 1);
+  if (o.ignite && syn('overheat') >= 0 && S.time - (S.ohT || -9) > .15) {
+    // Overheat: fire explosions throw lightning
+    S.ohT = S.time;
+    const near = S.enemies.filter(e => !e.dead && Math.hypot(e.x - x, e.y - y) < 170);
+    if (syn('overheat')) shuffle(near).slice(0, 3).forEach(e => bolt(e, .8)); else if (near.length) bolt(pick(near), .8, { noChain: true, from: { x, y } });
+  }
   eachNear(x, y, rad, e => {
     dmg(e, amt, { col, pierce: o.pierce, src: o.src });
     if (o.ignite) burn(e, burnFrom(amt));
@@ -99,9 +114,10 @@ function lightningDmg(e, mult) {
   let p = E('yellow', 'strike') * mult;
   const cd = sv('conductor');
   if (cd && (e.stun > 0 || isCold(e))) p *= 1 + cd / 100;
+  if (syn('plasma') === 1 && e.burnT > 0) p *= 2;
   if (e.boss || e.elite) p *= .25;
   // lightning softens enemies up but can't finish them: it stops at LFLOOR of their max HP, and your weapons do the rest
-  const room = e.hp - e.maxHp * LFLOOR;
+  const room = syn('supercon') === 1 && e.frozen > 0 ? e.hp : e.hp - e.maxHp * LFLOOR;
   if (room <= 0) return 1;
   return Math.max(1, Math.min(room, e.hp * p / 100 - Math.max(0, e.armor - E('yellow', 'lpen'))));
 }
@@ -112,6 +128,7 @@ function bolt(e, mult, o) {
   const d = lightningDmg(e, mult);
   dmg(e, d, { col: COL.yellow, src: 'lightning', pierce: true });
   if (Math.random() * 100 < E('yellow', 'lstun')) stun(e, .6);
+  if (syn('plasma') >= 0 && !e.dead) burn(e, burnFrom(S.avg));
   if (o.silent) return;
   const ov = sv('overload');
   if (ov) boom(e.x, e.y, sv('overload', 'r'), d * ov / 100, '#ffe066', { small: true, src: 'lightning', quiet: true });
@@ -119,10 +136,11 @@ function bolt(e, mult, o) {
   if (!o.noChain) chainFrom(e, mult * .8, (o.jumps || 0) + sv('chain'));
 }
 function chainFrom(e, mult, n) {
-  const hit = new Set([e]);
+  const hit = new Set([e]), sc = syn('supercon') >= 0;
   let cur = e;
+  if (sc && isCold(e)) n += 2;
   for (let i = 0; i < n; i++) {
-    const nx = nearest(cur.x, cur.y, 140, hit);
+    const nx = nearest(cur.x, cur.y, sc && isCold(cur) ? 220 : 140, hit);
     if (!nx) break;
     hit.add(nx);
     bolt(nx, mult, { from: cur, noChain: true });
@@ -142,8 +160,11 @@ function thorns(e) {
   if (e.dead) return;
   const rt = sv('retri');
   if (tot.thornFlat <= 0 && !rt) return;
-  const raw = tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100;
+  let raw = tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100;
+  if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
   dmg(e, Math.max(1, raw - Math.max(0, e.armor - tot.thornPen)), { col: '#e6c882', pierce: true });
+  if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.avg)));
+  if (!e.dead && syn('permafrost') >= 0) chill(e, 2);
   sfx('thorn');
   FX({ k: 'spikes', x: S.p.x, y: S.p.y, dir: Math.atan2(e.y - S.p.y, e.x - S.p.x), life: .25 });
 }
@@ -203,6 +224,7 @@ function processDeaths() {
   let guard = 0;
   while (S.dying.length && guard++ < 800) {
     const e = S.dying.shift();
+    if (bossTryRevive(e)) continue;
     S.kills++;
     sfx('pop');
     dropLoot(e);
@@ -210,6 +232,7 @@ function processDeaths() {
     puff(e.x, e.y, e.col, e.boss ? 40 : Math.min(9, 3 + e.r / 3 | 0), 150, .45);
     emit('kill', e);
     if (e.killer === 'golem') emit('gKill', e);
+    if (e.boss && !S.enemies.some(o => o.boss && !o.dead)) { S.eorbs = []; S.haz = []; S.tele = []; }
     if (e.boss) { S.shake = 14; hitstop(.12); FX({ k: 'boom', x: e.x, y: e.y, r: 130, life: .7, col: e.col }); sfx('boom', 1.5); }
   }
   S.enemies = S.enemies.filter(e => !e.dead);

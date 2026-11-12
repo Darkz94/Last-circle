@@ -40,6 +40,18 @@ function elemSetsHtml(sets, counts) {
       ${sets[c].map((a, i) => `<div class="e ${n >= ETHRESH[i] ? 'on' : ''}"><span class="pips">${'◆'.repeat(i + 1)}${'◇'.repeat(2 - i)}</span><b>(${ETHRESH[i]}) ${a.name}</b><br>${a.d(a, i)}</div>`).join('')}</div>`;
   }).join('');
 }
+// synergy list: hidden until discovered (in any run). Shows this run's version of each pair.
+function synHtml(roll, counts) {
+  const row = (a, label, s) => {
+    const known = CODEX.syn[a.id], on = S && S.synId === a.id;
+    const cols = a.els.map(c => COL[c]), lbl = a.els.map(c => `<b style="color:${COL[c]}">${ELEM[c]}</b>`).join(' + ');
+    if (!known) return `<div class="cx" style="--c:${cols[0]};border-left:3px solid;border-image:linear-gradient(${cols.join(',')}) 1">${lbl}: <b>???</b><br><span class="hint">${label}</span></div>`;
+    return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? a.major : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
+  };
+  let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && S.synId === SYN_PAIRS[k][roll[k]].id ? S.synS : 0); }).join('');
+  h += '<h3>Trios <span>· own 2 each of three elements</span></h3>' + TRIOS.map(t => row(SYN_TRIOS[t.join('+')], 'Own 2 of each of these three to reveal', 1)).join('');
+  return h;
+}
 function typeSetsHtml(tsets, counts) {
   return `<div class="cols">${TYPE_KEYS.map(t => {
     const n = (counts && counts[t]) || 0, own = counts && n > 0, c = own ? COL.gold : COL.steel;
@@ -48,7 +60,8 @@ function typeSetsHtml(tsets, counts) {
   }).join('')}</div>`;
 }
 function countChips() {
-  const el = ORDER.filter(c => S.counts[c]).map(c => `<span class="chip" style="--c:${COL[c]}"><b>${ELEM[c]}</b> ${S.counts[c]}/6</span>`).join('');
+  const el = ORDER.filter(c => S.counts[c]).map(c => `<span class="chip" style="--c:${COL[c]}"><b>${ELEM[c]}</b> ${S.counts[c]}/6</span>`).join('')
+    + (S.synId ? `<span class="chip" style="--c:var(--green)"><b>⚡ ${CODEX.syn[S.synId] ? SYN[S.synId].name : '???'}</b></span>` : '');
   const ty = TYPE_KEYS.filter(t => S.tcounts[t]).map(t => `<span class="chip" style="--c:${COL.gold}">${TYPES[t].n} ${S.tcounts[t]}</span>`).join('');
   return `<div class="chips" style="margin-bottom:10px">${el}${ty}</div>`;
 }
@@ -71,7 +84,7 @@ function audioBtns() { return `<button class="btn sm ${AU.on.music ? 'on' : ''}"
 function renderStart() {
   if (!pendingRun) pendingRun = rollRun();
   checkUpdate();
-  const b = bestWave(), sv2 = loadSave(), seen = Object.keys(CODEX.ab).length + Object.keys(CODEX.rel).length, total = AB_COUNT + RELICS.length;
+  const b = bestWave(), sv2 = loadSave(), seen = Object.keys(CODEX.ab).length + Object.keys(CODEX.rel).length + Object.keys(CODEX.syn).length, total = AB_COUNT + RELICS.length + SYN_COUNT;
   let body = '';
   if (UI.stab === 'play') {
     if (updateInfo) body += `<div class="note green split"><span><b>Update available</b> (v${updateInfo.version})${updateInfo.notes ? `<br><span class="hint">${updateInfo.notes}</span>` : ''}${updateInfo.err ? '<br><span style="color:var(--hp)">Download failed. Check your connection and try again.</span>' : ''}</span>
@@ -80,7 +93,7 @@ function renderStart() {
     body += `<h3>Choose your first weapon</h3><div class="grid2">${pendingRun.starters.map((w, i) => weaponCard(w, `start:${i}`)).join('')}</div>
       <div class="row" style="margin-top:12px"><button class="btn" data-act="reroll-run">Roll a different run</button>${audioBtns()}</div>
       <p class="hint" style="margin-top:12px">Every run rolls new bonuses: check the <b>Elements</b> and <b>Weapons</b> tabs before you pick. Move with the stick (drag anywhere) or WASD. Weapons attack on their own.</p>`;
-  } else if (UI.stab === 'elements') body = `<h3>This run's element bonuses <span>· own 2 / 4 / 6 weapons of a colour</span></h3>${elemSetsHtml(pendingRun.sets)}`;
+  } else if (UI.stab === 'elements') body = `<h3>This run's element bonuses <span>· own 2 / 4 / 6 weapons of a colour</span></h3>${elemSetsHtml(pendingRun.sets)}<h3>Synergies <span>· mix elements: 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(pendingRun.syn)}`;
   else if (UI.stab === 'types') body = `<h3>This run's weapon type bonuses <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(pendingRun.tsets)}`;
   else body = codexHtml();
   showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}`,
@@ -89,6 +102,8 @@ function renderStart() {
 function codexHtml() {
   let h = '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
   for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b><br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  const allSyn = Object.values(SYN);
+  h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${synText(a, 1)}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
   h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b><br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   return h;
 }
@@ -120,6 +135,7 @@ function renderShop() {
   const g = Math.floor(S.gold), full = S.weapons.length >= 6, endless = S.wave >= 20;
   let body = '';
   if (UI.tab === 'shop') {
+    if (S.synNote) { const a = SYN[S.synNote]; body += `<div class="note green"><b>Synergy discovered: ${a.name}!</b><br>${synText(a, S.synS)}</div>`; }
     if (S.wave === 20) body += `<div class="note red"><b>Endless begins next wave.</b> The shop stays open, and you can now trade gold for XP below.</div>`;
     if (S.lastLost) body += `<div class="note">Left on the floor last wave: ${[S.lastLost.gold ? S.lastLost.gold + ' gold' : '', S.lastLost.xp ? S.lastLost.xp + ' XP' : ''].filter(Boolean).join(' and ')}. Grab loot before the collect timer ends.</div>`;
     body += countChips();
@@ -145,7 +161,7 @@ function renderShop() {
     }).join('') + Array(Math.max(0, 6 - S.weapons.length)).fill('<div class="wrow empty">Empty slot</div>').join('')
       + `<p class="hint">Upgrading a weapon also strengthens its own two stats. With all 6 weapons of one element, a tier IV weapon of that element can <b style="color:var(--green)">evolve</b> into a legendary.</p>`;
   } else if (UI.tab === 'bonus') {
-    body = `<h3>Elements <span>· own 2 / 4 / 6 of a colour</span></h3>${elemSetsHtml(S.runSets, S.counts)}<h3>Weapon types <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
+    body = `<h3>Elements <span>· own 2 / 4 / 6 of a colour</span></h3>${elemSetsHtml(S.runSets, S.counts)}<h3>Synergies <span>· 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(S.synRoll, S.counts)}<h3>Weapon types <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
   } else body = statsHtml();
   const nw = S.wave + 1;
   showScreen(sheet({ title: '<h2>Shop</h2>', sub: `Wave ${S.wave} cleared`, right: `<div class="goldbox">${g}</div>`,
@@ -164,7 +180,7 @@ function renderPause() {
   if (UI.ptab === 'menu') body = `<div class="row"><button class="btn go wide" data-act="resume">Resume</button></div><div class="row" style="margin-top:10px">${audioBtns()}</div>
     <div class="row" style="margin-top:10px"><button class="btn wide" data-act="quit">Save &amp; quit to menu</button></div>
     <p class="hint">Your run is saved at the start of every wave. Quitting now brings you back to the start of wave ${S.wave}.</p>`;
-  else if (UI.ptab === 'bonus') body = countChips() + elemSetsHtml(S.runSets, S.counts) + typeSetsHtml(S.typeSets, S.tcounts);
+  else if (UI.ptab === 'bonus') body = countChips() + elemSetsHtml(S.runSets, S.counts) + '<h3>Synergies</h3>' + synHtml(S.synRoll, S.counts) + typeSetsHtml(S.typeSets, S.tcounts);
   else body = statsHtml();
   showScreen(sheet({ title: '<h2>Paused</h2>', sub: `Wave ${S.wave} · level ${S.level}`, tabs: [['menu', 'Menu'], ['bonus', 'Bonuses'], ['stats', 'Stats']], tab: UI.ptab, tabAct: 'ptab', body }), 'pause:' + UI.ptab);
 }

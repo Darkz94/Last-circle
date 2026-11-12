@@ -73,7 +73,7 @@ function loop(now) {
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
     rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, choosePerk, takeRelic,
-    priceOf, upCost, evoCost, canEvolve, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest };
+    SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest };
 }
 resize();
 requestAnimationFrame(loop);

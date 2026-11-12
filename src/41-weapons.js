@@ -132,7 +132,7 @@ function tryGolemHit(g, reach, cd) {
   });
 }
 function updGolems(dt) {
-  const p = S.p, spd = 210 * E('green', 'sspd') / 100;
+  const p = S.p, spd = 210 * E('green', 'sspd') / 100 * (syn('livingstorm') >= 0 ? 1.3 : 1);
   for (const g of S.golems) {
     g.life -= dt; g.hitCd -= dt;
     const tg = nearest(g.x, g.y, 600);

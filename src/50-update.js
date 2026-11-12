@@ -10,13 +10,14 @@ function startWave() {
   p.x = 0; p.y = 0; p.hp = tot.maxHp; p.inv = 1; p.shield = 0;
   for (const k of WAVE_LISTS) S[k] = [];
   S.timers = {}; S.colossus = null; S.colT = 1; S.surge = { n: 0, t: 0 }; S.beam = null;
+  S.arenaR = R; S.shrink = false; S.silence = 0; S.synNote = null;
   S.phoenixUsed = false; S.windUsed = false; S.blood = 0; S.collectT = null; S.hitstop = 0; S.hurtFlash = 0;
   for (const w of S.weapons) { w.sumT = 1; w.cd = rnd(0, .3); }
   const boss = S.wave % 10 === 0;
   S.toSpawn = Math.round(waveCount(S.wave) * (boss ? .55 : 1));
   S.spawnT = 1.2; S.bossPending = boss; S.bossT = 2.5;
   scheduleEvents();
-  banner(boss ? `Wave ${S.wave} — The Hollow King` : S.wave === 21 ? 'Wave 21 — beyond the circle' : `Wave ${S.wave}`);
+  banner(boss ? `Wave ${S.wave} — ${bossFor(S.wave).name}` : S.wave === 21 ? 'Wave 21 — beyond the circle' : `Wave ${S.wave}`);
   AU.wave = S.wave;
   sfx(boss ? 'boss' : S.wave > 20 ? 'endless' : 'wave');
   hideScreen();
@@ -36,7 +37,7 @@ function updPlayer(dt) {
   if (S.moving) p.face = Math.atan2(my, mx);
   const spd = tot.baseSpeed * surgeM() * (1 + ((S.buff && S.buff.spd) || 0));
   p.x += mx * spd * dt; p.y += my * spd * dt;
-  const pl2 = Math.hypot(p.x, p.y); if (pl2 > R - PR) { p.x *= (R - PR) / pl2; p.y *= (R - PR) / pl2; }
+  const lim = S.arenaR - PR, pl2 = Math.hypot(p.x, p.y); if (pl2 > lim) { p.x *= lim / pl2; p.y *= lim / pl2; }
   p.inv -= dt; p.shield = Math.max(0, p.shield - dt);
   S.staticCd -= dt; S.novaCd -= dt;
   heal((tot.regen + ((S.buff && S.buff.regen) || 0)) * dt);
@@ -64,6 +65,7 @@ function updFx(dt) {
   S.shake = Math.max(0, S.shake - dt * 40);
   S.punch = Math.max(0, S.punch - dt * 5);
   S.hurtFlash = Math.max(0, (S.hurtFlash || 0) - dt);
+  S.silence = Math.max(0, S.silence - dt);
   if (S.banner) { S.banner.t += dt; if (S.banner.t > 2.4) S.banner = null; }
 }
 
@@ -110,7 +112,12 @@ function nextMenu() {
   const resumed = S.resumed; S.resumed = null;
   if (S.pendingRelic > 0) {
     S.phase = 'relic';
-    if (!S.relicOffer) { const pool = shuffle(RELICS.filter(r => !S.relicOn[r.id])).slice(0, 3); S.relicOffer = pool.map(r => r.id); }
+    if (!S.relicOffer) {
+      // one of the fallen boss's favourite relics, plus two others
+      const fav = shuffle(((BOSSES[S.lastBossKey] || {}).relics || []).filter(id => !S.relicOn[id]));
+      const rest = shuffle(RELICS.filter(r => !S.relicOn[r.id] && r.id !== fav[0]).map(r => r.id));
+      S.relicOffer = (fav.length ? [fav[0]] : []).concat(rest).slice(0, 3);
+    }
     if (S.relicOffer.length) { renderRelic(); return; }
     S.pendingRelic = 0; S.relicOffer = null;
   }
@@ -184,6 +191,7 @@ function musicMode() {
   if (!S) return 'calm';
   if (S.phase === 'dead') return null;
   if (S.phase !== 'fight') return 'calm';
+  if (S.silence > 0) return null;
   if (S.bossPending || S.enemies.some(e => e.boss)) return 'boss';
   return S.wave > 20 ? 'endless' : 'fight';
 }

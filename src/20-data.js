@@ -117,7 +117,8 @@ const ETYPES = {
   charger: { r: 14, hp: 30,   spd: 55,  dmg: 14, gold: 3,  xp: 2,  col: '#b75fc4', shape: 'charger' },
   boss:    { r: 44, hp: 1300, spd: 50,  dmg: 28, gold: 120, xp: 60, col: '#c8436a', shape: 'boss', arm: 2.5 },
   goblin:  { r: 11, hp: 45,   spd: 150, dmg: 0,  gold: 0,  xp: 4,  col: '#e0b84a', shape: 'goblin', special: true },
-  altar:   { r: 18, hp: 90,   spd: 0,   dmg: 0,  gold: 8,  xp: 6,  col: '#6a2c7e', shape: 'altar', special: true },
+  altar:   { r: 18, hp: 90,   spd: 0,   dmg: 0,  gold: 8,  xp: 6,  col: '#6a2c7e', shape: 'altar', special: true, fixed: true },
+  egg:     { r: 12, hp: 40,   spd: 0,   dmg: 0,  gold: 1,  xp: 1,  col: '#d9c7a0', shape: 'egg', special: true, fixed: true },
 };
 
 // ---- shrine buffs (arena event)

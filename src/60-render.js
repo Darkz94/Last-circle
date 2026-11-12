@@ -76,7 +76,19 @@ function draw() {
   const halo = sv('halo'); if (halo) { c.strokeStyle = 'rgba(160,220,255,.3)'; c.lineWidth = 2; c.setLineDash([2, 7]); c.lineDashOffset = T * 10; c.beginPath(); c.arc(p.x, p.y, halo, 0, TAU); c.stroke(); c.setLineDash([]); }
   const aura = sv('inferno'); if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
   for (const ev of S.evs) drawEvent(c, ev, T);
-  for (const t of S.tele) { const k = t.t / t.life; c.fillStyle = `rgba(255,40,60,${.1 + k * .22})`; c.beginPath(); c.arc(t.x, t.y, t.r, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,60,80,.28)'; c.beginPath(); c.arc(t.x, t.y, t.r * k, 0, TAU); c.fill(); c.strokeStyle = '#ff4d5e'; c.lineWidth = 3; c.beginPath(); c.arc(t.x, t.y, t.r, 0, TAU); c.stroke(); }
+  drawBossWorld(c, T);
+  for (const t of S.tele) {
+    const k = t.t / t.life;
+    if (t.line) {
+      c.save(); c.translate(t.x, t.y); c.rotate(t.ang);
+      c.fillStyle = `rgba(255,40,60,${.12 + k * .2})`; c.fillRect(0, -t.w / 2, t.len, t.w);
+      c.fillStyle = 'rgba(255,60,80,.3)'; c.fillRect(0, -t.w / 2, t.len * k, t.w);
+      c.strokeStyle = '#ff4d5e'; c.lineWidth = 2.5; c.strokeRect(0, -t.w / 2, t.len, t.w);
+      c.restore(); continue;
+    }
+    c.fillStyle = `rgba(255,40,60,${.1 + k * .22})`; c.beginPath(); c.arc(t.x, t.y, t.r, 0, TAU); c.fill(); c.fillStyle = 'rgba(255,60,80,.28)'; c.beginPath(); c.arc(t.x, t.y, t.r * k, 0, TAU); c.fill(); c.strokeStyle = '#ff4d5e'; c.lineWidth = 3; c.beginPath(); c.arc(t.x, t.y, t.r, 0, TAU); c.stroke();
+  }
+  for (const v of S.vents) { c.fillStyle = 'rgba(255,110,40,.25)'; c.beginPath(); c.arc(v.x, v.y, 22, 0, TAU); c.fill(); c.fillStyle = '#4a3020'; c.beginPath(); c.moveTo(v.x - 14, v.y + 8); c.lineTo(v.x - 5, v.y - 8); c.lineTo(v.x + 5, v.y - 8); c.lineTo(v.x + 14, v.y + 8); c.closePath(); c.fill(); c.fillStyle = '#ffb347'; c.fillRect(v.x - 5, v.y - 9, 10, 3); }
   for (const e of S.enemies) if (e.mode === 'wind') { c.strokeStyle = `rgba(255,60,80,${.35 + Math.sin(T * 40) * .2})`; c.lineWidth = e.r * 1.2; c.lineCap = 'butt'; c.beginPath(); c.moveTo(e.x, e.y); c.lineTo(e.x + e.dx * 170, e.y + e.dy * 170); c.stroke(); }
 
   // ---- loot
@@ -99,6 +111,7 @@ function draw() {
   // ---- enemies and structures
   for (const e of S.enemies) drawEnemy(c, e, T);
   for (const pi of S.pillars) { c.globalAlpha = Math.min(1, pi.life); drawCrystal(c, pi.x, pi.y, 22, 9); c.globalAlpha = 1; }
+  drawOrbs(c, T);
   for (const b of S.walls) { c.globalAlpha = Math.min(1, b.life * 2); drawCrystal(c, b.x, b.y, 15 + b.seed * 6, b.r); c.globalAlpha = 1; }
   for (const rd of S.rods) {
     c.globalAlpha = Math.min(1, rd.life);
@@ -177,12 +190,16 @@ function drawOverlay(c, T, endless, bossOn) {
     c.fillStyle = vg; c.fillRect(0, 0, VW, VH);
   }
   c.textAlign = 'center'; c.textBaseline = 'middle';
-  const boss = S.enemies.find(e => e.boss);
+  const bosses = S.enemies.filter(e => e.boss && !e.dead), boss = bosses.find(e => !e.mini) || bosses[0];
   if (boss) {
-    const w = Math.min(420, VW - 40), x = (VW - w) / 2, y = VH - 84;
+    const b = BOSSES[boss.bk], w = Math.min(420, VW - 40), x = (VW - w) / 2, y = VH - 84;
+    const hp = bosses.reduce((n, e) => n + Math.max(0, e.hp), 0), mx = bosses.reduce((n, e) => n + e.maxHp, 0);
     c.fillStyle = 'rgba(10,10,14,.8)'; c.fillRect(x - 2, y - 2, w + 4, 14);
-    c.fillStyle = '#c8436a'; c.fillRect(x, y, w * Math.max(0, boss.hp / boss.maxHp), 10);
-    c.font = '700 12px "Chakra Petch"'; c.fillStyle = '#e6e3da'; c.fillText('THE HOLLOW KING', VW / 2, y - 11);
+    c.fillStyle = boss.reviveT > 0 ? `rgba(255,40,60,${.4 + Math.sin(T * 20) * .3})` : boss.phase === 3 ? '#ff2244' : b.col;
+    c.fillRect(x, y, boss.reviveT > 0 ? w * (1 - boss.reviveT / 2.4) : w * hp / mx, 10);
+    if (boss.phase === 1 && !boss.risen) { c.fillStyle = 'rgba(255,255,255,.5)'; c.fillRect(x + w / 2 - 1, y, 2, 10); }
+    c.font = '700 12px "Chakra Petch"'; c.fillStyle = '#e6e3da';
+    c.fillText(`${b.name.toUpperCase()}${boss.phase === 3 ? ' · RISEN' : boss.phase === 2 ? ' · II' : ''}`, VW / 2, y - 11);
   }
   if (S.buff && S.phase === 'fight') { c.font = '700 12px "Chakra Petch"'; c.fillStyle = S.buff.col; c.fillText(`${S.buff.name.toUpperCase()} · ${S.buff.desc}`, VW / 2, 70); }
   if (S.collectT !== null && S.collectT > 0 && S.phase === 'fight') { c.font = `700 ${Math.min(28, VW / 16)}px "Chakra Petch"`; c.fillStyle = '#f2c14e'; c.fillText(`COLLECT · ${S.collectT.toFixed(1)}s`, VW / 2, VH * .2); }
@@ -256,14 +273,12 @@ function drawEnemy(c, e, T) {
       c.beginPath(); c.moveTo(r * 1.5, 0); c.lineTo(0, r * .9); c.lineTo(-r * 1.05, 0); c.lineTo(0, -r * .9); c.closePath(); c.fill(); c.stroke();
       c.fillStyle = lite; c.beginPath(); c.moveTo(r * 1.9, 0); c.lineTo(r * .9, r * .3); c.lineTo(r * .9, -r * .3); c.closePath(); c.fill();
       c.fillStyle = eye; c.beginPath(); c.arc(r * .25, 0, r * .2, 0, TAU); c.fill(); break; }
-    case 'boss': {
-      if (e.enraged) { c.fillStyle = `rgba(255,40,60,${.18 + Math.sin(T * 9) * .08})`; c.beginPath(); c.arc(0, 0, r * 1.45, 0, TAU); c.fill(); }
-      c.fillStyle = '#f2c14e'; for (const sx of [-1, 0, 1]) { c.beginPath(); c.moveTo(sx * r * .45 - r * .2, -r * .8); c.lineTo(sx * r * .45, -r * (sx ? 1.3 : 1.5)); c.lineTo(sx * r * .45 + r * .2, -r * .8); c.closePath(); c.fill(); }
-      c.fillStyle = base; c.lineWidth = 3;
-      c.beginPath(); for (let i = 0; i < 12; i++) { const a = i / 12 * TAU + T * .4, rr = i % 2 ? r * .8 : r * 1.06; c.lineTo(Math.cos(a) * rr, Math.sin(a) * rr); } c.closePath(); c.fill(); c.stroke();
-      c.fillStyle = hit ? '#ffffff' : '#2a0c18'; c.beginPath(); c.arc(0, 0, r * .55, 0, TAU); c.fill();
-      c.fillStyle = hit ? '#ffffff' : `rgba(255,90,120,${.7 + Math.sin(T * 5) * .3})`; c.beginPath(); c.arc(0, 0, r * (.2 + Math.sin(T * 5) * .03), 0, TAU); c.fill();
-      eyes(c, r * 1.1, ang, 2, '#ffd0dc'); break; }
+    case 'boss': drawBoss(c, e, T, ang, base, dark, lite, hit); break;
+    case 'egg': {
+      const k = 1 - Math.max(0, e.hatchT) / 4.5, wob2 = Math.sin(T * (6 + k * 20)) * k * .15;
+      c.rotate(wob2); c.fillStyle = hit ? '#fff' : '#e6d6b0'; c.beginPath(); c.ellipse(0, 0, r * .85, r * 1.1, 0, 0, TAU); c.fill(); c.stroke();
+      c.fillStyle = `rgba(150,60,200,${.25 + k * .5})`; c.beginPath(); c.ellipse(0, r * .1, r * .5 * k + 1, r * .7 * k + 1, 0, 0, TAU); c.fill();
+      c.strokeStyle = 'rgba(80,40,30,.6)'; c.lineWidth = 1.2; if (k > .5) { c.beginPath(); c.moveTo(-r * .3, -r * .6); c.lineTo(0, -r * .2); c.lineTo(r * .2, -r * .7); c.stroke(); } break; }
     case 'goblin':
       c.fillStyle = '#7a5520'; c.beginPath(); c.arc(-Math.cos(ang) * -r * .9, -Math.sin(ang) * -r * .9 + r * .2, r * .75, 0, TAU); c.fill();
       c.fillStyle = base; for (const sx of [-1, 1]) { c.beginPath(); c.moveTo(sx * r * .7, -r * .3); c.lineTo(sx * r * 1.6, -r * .8); c.lineTo(sx * r * .85, r * .2); c.closePath(); c.fill(); c.stroke(); }
@@ -293,7 +308,9 @@ function drawGolem(c, g, k, T) {
   c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, 6 * k, 7 * k, 2.6 * k, 0, 0, TAU); c.fill();
   c.translate(0, bob);
   if (k > 1.5) { c.fillStyle = '#6f7a62'; for (const sx of [-1, 1]) { c.beginPath(); c.arc(sx * 8 * k, 1 * k, 3.6 * k, 0, TAU); c.fill(); } }   // big ones get fists
-  rockPath(c, 7 * k, 7, g.seed); c.fillStyle = k > 2.2 ? '#7d8a6c' : '#98a487'; c.fill(); c.strokeStyle = '#4c5642'; c.lineWidth = 1.6; c.stroke();
+  const gt = syn('glacier') >= 0 ? '#a9d8ee' : syn('livingstorm') >= 0 ? '#c9c58a' : k > 2.2 ? '#7d8a6c' : '#98a487';
+  if (syn('livingstorm') >= 0) { c.fillStyle = `rgba(255,220,90,${.2 + Math.sin(T * 20 + g.seed) * .1})`; c.beginPath(); c.arc(0, 0, 11 * k, 0, TAU); c.fill(); }
+  rockPath(c, 7 * k, 7, g.seed); c.fillStyle = gt; c.fill(); c.strokeStyle = '#4c5642'; c.lineWidth = 1.6; c.stroke();
   c.fillStyle = '#5fc46a'; c.beginPath(); c.arc(-2 * k, -5 * k, 2.6 * k, Math.PI, 0); c.fill();                                                     // moss
   c.fillStyle = '#c8ffd0'; c.fillRect(-3.4 * k, -1.6 * k, 2 * k, 1.8 * k); c.fillRect(1.4 * k, -1.6 * k, 2 * k, 1.8 * k);                          // eyes
   c.restore();
