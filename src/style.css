@@ -123,3 +123,14 @@ h3 span{text-transform:none;letter-spacing:.02em}
   .goldbox{font-size:17px}
 }
 @media (max-width:420px){ .cols{grid-template-columns:1fr} .card .t{font-size:13px} }
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;display:flex;flex-direction:column;gap:1px}
+.tile span{font-size:11px;color:#9a978e}
+.tile b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
+.tile em{font-style:normal;font-size:11px;color:#9a978e}
+.bar{margin-bottom:7px}
+.bar .bl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.bar .bl b{color:var(--text);font-variant-numeric:tabular-nums}
+.bar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
+.bar .bt i{display:block;height:100%;border-radius:4px}
+@media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}

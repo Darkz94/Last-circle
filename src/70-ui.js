@@ -22,7 +22,7 @@ const coin = n => `<span class="gc">●</span> ${n}`;
 function elemLine(w) {
   const g = (c, k) => S ? E(c, k) : EDEF[c][k].base, t = w.tier;
   if (w.el === 'red') return w.evo ? 'Always ignites · 25% chance to explode' : `${fmt(g('red', 'ign'))}% chance to ignite`;
-  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'arcCh'))}% to arc for ${fmt(g('yellow', 'strike') * .8)}% of current HP${w.evo ? ' · 35% to call a strike' : ''}`;
+  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'strikeCh'))}% to call a strike for ${fmt(g('yellow', 'strike'))}% of current HP${w.evo ? ' · 35% extra strike chance' : ''}`;
   if (w.el === 'blue') return `${fmt(g('blue', 'chillCh'))}% chance to chill (+${(t >= 2 ? 2 : 1) + (w.evo ? 1 : 0)}); 4 freezes${w.evo ? ' · 12% instant freeze' : ''}`;
   return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
@@ -30,7 +30,7 @@ function weaponCard(w, act, foot) {
   const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
   return `<button class="card ${act ? '' : 'off'}" style="--c:${COL[w.el]}" ${act ? `data-act="${act}"` : 'disabled'}>
     <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</b></div>
-    <div class="ln">${d} dmg · ${T.how}</div><div class="ln">${elemLine(w)}</div>
+    <div class="ln"><b style="color:var(--gold)">${T.role}</b> · ${d} dmg · ${T.how}</div><div class="ln hint">${T.trait}</div><div class="ln">${elemLine(w)}</div>
     ${w.afx.map(k => `<div class="ln af">◆ ${statText(k, afxVal(k, w))}</div>`).join('')}${foot || ''}</button>`;
 }
 function elemSetsHtml(sets, counts) {
@@ -188,7 +188,43 @@ function renderDead() {
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--hp)">Fallen</h2>`, sub: `The circle broke on wave ${S.wave}${S.wave > 20 ? ', deep in the endless waves' : ''}`,
     body: `<p style="margin:0 0 8px">Level ${S.level} · ${S.kills} kills · best wave ${bestWave()}</p>
       <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${w.evo ? '★' : ROMAN[w.tier]}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
-    foot: `<button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
+    foot: `<button class="btn wide" data-act="runstats" style="margin-bottom:8px">Run stats</button><button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
+}
+const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
+const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', explosion: '#ff5a3c', thorns: '#e6c882', bleed: '#d0213f', execute: '#ffffff', golem: '#5ee08a', shatter: '#4fc3ff', steam: '#c9e8ff', ability: '#9b8cff' };
+const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
+function barList(entries, total, nameOf, colOf) {
+  return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
+    return `<div class="bar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
+}
+function renderRunStats() {
+  const r = S.rs, tab = UI.rtab || 'high';
+  const mm = Math.floor(r.time / 60), ss = Math.floor(r.time % 60);
+  const tile = (l, v, sub) => `<div class="tile"><span>${l}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  let body;
+  if (tab === 'high') {
+    body = `<div class="tiles">
+      ${tile('Wave reached', S.wave, S.wave > 20 ? 'endless' : '')}${tile('Time in combat', `${mm}:${String(ss).padStart(2, '0')}`)}
+      ${tile('Damage dealt', big(r.dealt))}${tile('Biggest hit', big(r.big), SRC_NAME[r.bigSrc] || '')}
+      ${tile('Kills', S.kills, `${r.elites} elite${r.elites === 1 ? '' : 's'} · ${r.bosses} boss${r.bosses === 1 ? '' : 'es'}`)}${tile('Crits', big(r.crits))}
+      ${tile('Damage taken', big(r.taken))}${tile('Healed', big(r.healed))}
+      ${tile('Closest call', Math.round(r.low * 100) + '% HP')}${tile('Gold collected', big(r.gold), `${r.bought} bought · ${r.rerolls} rerolls`)}
+      ${r.strikes ? tile('Lightning strikes', big(r.strikes), r.execs ? r.execs + ' executes' : '') : ''}${r.stacks > 1 ? tile('Most burn stacks', r.stacks, 'on one enemy') : ''}
+    </div>
+    <h3>Damage by source</h3>${barList(Object.entries(r.src), r.dealt, k => SRC_NAME[k] || k, k => SRC_COL[k] || '#aaa')}
+    ${Object.keys(r.wt).length ? `<h3>Weapon hits by type</h3>${barList(Object.entries(r.wt), Object.values(r.wt).reduce((a, b) => a + b, 0), k => TYPES[k].n, () => COL.gold)}` : ''}`;
+  } else {
+    const ab = ORDER.flatMap(c => S.runSets[c].map((a, i) => S.on[a.id] === i ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b> <span class="hint">${(S.counts[c] || 0)} ${ELEM[c]}</span><br>${a.d(a, i)}</div>` : '')).join('');
+    const sy = S.synId ? SYN[S.synId] : null;
+    const fought = []; for (let w = 10; w <= S.wave; w += 10) fought.push(`<span class="chip" style="--c:${BOSSES[bossKeyFor(w)].col}">W${w} ${BOSSES[bossKeyFor(w)].name}</span>`);
+    body = countChips() + `<h3>Weapons</h3><div class="grid3">${S.weapons.map(w => weaponCard(w, null)).join('')}</div>
+      ${ab ? `<h3>Active abilities</h3>${ab}` : ''}
+      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>` : ''}
+      ${fought.length ? `<h3>Bosses faced</h3><div class="chips">${fought.join('')}</div>` : ''}
+      <h3>Final stats</h3>${statsHtml()}<h3>Weapon type bonuses</h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
+  }
+  showScreen(sheet({ title: '<h2>Run stats</h2>', sub: `Wave ${S.wave} · level ${S.level}`, tabs: [['high', 'Highlights'], ['build', 'Build']], tab, tabAct: 'runstats', body,
+    foot: `<button class="btn wide" data-act="deadback">Back</button>` }), 'runstats:' + tab);
 }
 
 // ---- HUD
@@ -222,6 +258,8 @@ function act(a, arg) {
   if (a === 'restart' || a === 'quit') { paused = false; S = null; showHud(false); UI.stab = 'play'; renderStart(); return; }
   if (!S) return;
   if (a === 'ptab') { UI.ptab = arg; renderPause(); return; }
+  if (a === 'runstats') { sfx('click'); UI.rtab = arg || 'high'; renderRunStats(); return; }
+  if (a === 'deadback') { sfx('click'); renderDead(); return; }
   if (a === 'resume') { togglePause(); return; }
   if (a === 'tab') { UI.tab = arg; renderShop(); return; }
   if (a === 'perk') { choosePerk(+arg); return; }
@@ -231,11 +269,11 @@ function act(a, arg) {
   if (S.phase !== 'shop') return;
   const g = S.gold;
   if (a === 'next') { startWave(); return; }
-  if (a === 'reroll') { if (g < S.rerollCost) return; sfx('click'); S.gold -= S.rerollCost; S.rerolls++; S.rerollCost = rerollPrice(); S.offers = rollOffers(); S.shopLocked = false; }
+  if (a === 'reroll') { if (g < S.rerollCost) return; sfx('click'); S.gold -= S.rerollCost; S.rerolls++; S.rs.rerolls++; S.rerollCost = rerollPrice(); S.offers = rollOffers(); S.shopLocked = false; }
   else if (a === 'lock') { S.shopLocked = !S.shopLocked; sfx('click'); }
   else if (a === 'buylvr') { const pr = lvRerollPrice(); if (g < pr) return; S.gold -= pr; S.lvRerollBuys++; sfx('buy'); }
   else if (a === 'xp') { const amt = Math.floor(Math.floor(g) * +arg); if (amt < 2) return; S.gold -= amt; gainXp(amt * GOLD_TO_XP); sfx('level'); if (S.pendingLv > 0) { nextMenu(); return; } }
-  else if (a === 'buy') { const o = S.offers[+arg]; if (!o || S.weapons.length >= 6 || g < priceOf(o.tier)) return; sfx('buy'); S.gold -= priceOf(o.tier); S.offers[+arg] = null; addWeapon(o); }
+  else if (a === 'buy') { const o = S.offers[+arg]; if (!o || S.weapons.length >= 6 || g < priceOf(o.tier)) return; sfx('buy'); S.gold -= priceOf(o.tier); S.offers[+arg] = null; S.rs.bought++; addWeapon(o); }
   else {
     const w = S.weapons.find(w => w.id === +arg); if (!w) return;
     if (a === 'up') { if (w.tier >= 3 || g < upCost(w.tier)) return; sfx('buy'); S.gold -= upCost(w.tier); w.tier++; recalc(); }

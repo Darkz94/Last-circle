@@ -59,7 +59,7 @@ const BOSSES = {
   },
 
   blade: {
-    name: 'The Bladedancer', col: '#43c7b8', hpM: .8, r: 28, spd: 1.8, relics: ['wind', 'clock', 'vamp'],
+    name: 'The Bladedancer', col: '#43c7b8', hpM: .8, r: 28, spd: 1.8, relics: ['combust', 'wind', 'vamp'],
     p2msg: 'moves faster than the eye!', p3msg: 'becomes a blur!',
     p2(e) { e.spd *= 1.15; },
     p3(e) { e.blinkT = 1.2; e.spd *= 1.1; },
@@ -205,7 +205,7 @@ function bossStep(e, dt, p, held) {
 function bossTryRevive(e) {
   if (!e.boss || e.mini || e.risen || S.wave <= 20) return false;
   e.dead = false; e.risen = true; e.hp = 1; e.maxHp *= .6; e.reviveT = 2.4;
-  e.burnT = 0; e.chill = 0; e.frozen = 0; e.stun = 0;
+  e.burnT = 0; e.bs = []; e.chill = 0; e.frozen = 0; e.stun = 0;
   S.silence = 2.4;
   S.tele = []; S.eorbs = [];
   banner('...');

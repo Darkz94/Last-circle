@@ -8,12 +8,18 @@ function codexSee(kind, id) { if (!CODEX[kind][id]) { CODEX[kind][id] = 1; LS.se
 const bestWave = () => +LS.get('lastCircleBest3', 0) || 0;
 function saveBest() { if (S.wave > bestWave()) LS.set('lastCircleBest3', S.wave); }
 
-const rollAffixes = () => shuffle([...STAT_KEYS]).slice(0, 2);
-const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes() });
+// weighted stat rolls: a weapon type's favoured stats are 3x as likely (swords have no favourites)
+function rollStats(type, n) {
+  const fav = (type && TYPES[type].fav) || [], pool = STAT_KEYS.map(k => [k, fav.includes(k) ? 3 : 1]), out = [];
+  while (out.length < n && pool.length) { let r = Math.random() * pool.reduce((a, p) => a + p[1], 0), i = 0; while ((r -= pool[i][1]) > 0) i++; out.push(pool[i][0]); pool.splice(i, 1); }
+  return out;
+}
+const rollAffixes = type => rollStats(type, 2);
+const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes(type) });
 function rollRun() {
   const sets = {}, tsets = {};
   for (const c of ORDER) sets[c] = shuffle([...ABIL[c]]).slice(0, 3);
-  for (const t of TYPE_KEYS) tsets[t] = shuffle([...STAT_KEYS]).slice(0, 3);
+  for (const t of TYPE_KEYS) tsets[t] = rollStats(t, 3);
   const types = shuffle([...TYPE_KEYS]);
   return { sets, tsets, syn: rollSyn(), bosses: rollBosses(), starters: ORDER.map((c, i) => makeWeapon(types[i], c, 0)) };
 }
@@ -21,6 +27,7 @@ function rollRun() {
 const WAVE_LISTS = ['haz', 'eorbs', 'vents', 'enemies', 'golems', 'projs', 'flames', 'pillars', 'zones', 'rings', 'orbs', 'rods', 'sprites', 'spirits', 'wizards', 'walls', 'evs', 'tele', 'later', 'fx', 'pt', 'texts', 'drops', 'dying'];
 function freshState(sets, tsets, synRoll, bossOrder) {
   const s = {
+    rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
     st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0 },
@@ -73,6 +80,7 @@ function recalc() {
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
+  t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);
@@ -120,7 +128,7 @@ function saveRun() {
     v: 2, st: S.st, ep: S.ep, tsets: S.typeSets, sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(a => a.id)])),
     level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
     weapons: S.weapons.map(packW), relics: S.relics, syn: S.synRoll, bosses: S.bossOrder, pendingRelic: S.pendingRelic, relicOffer: S.relicOffer,
-    phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
+    rs: S.rs, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
     lvRerollBuys: S.lvRerollBuys, lvRerolls: S.lvRerolls, shopLocked: S.shopLocked, lockedOffers: S.lockedOffers && S.lockedOffers.map(packW), shopWave: S.shopWave,
     perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(packCard) : null, lockedCards: S.lockedCards.map(packCard),
   });
@@ -139,7 +147,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => d.syn[pairKey(a, b)] === 0 || d.syn[pairKey(a, b)] === 1);
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, d.st); S.ep = d.ep;
+  Object.assign(S.st, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;

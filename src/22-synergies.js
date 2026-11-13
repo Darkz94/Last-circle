@@ -24,7 +24,7 @@ const SYN_PAIRS = {
     { id: 'molten', name: 'Molten Thorns', minor: 'Thorns set attackers on fire', major: 'Thorns deal double damage to burning enemies' },
   ]),
   'yellow+blue': synDef(['yellow', 'blue'], [
-    { id: 'supercon', name: 'Superconductor', minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning ignores its 65% floor on frozen enemies' },
+    { id: 'supercon', name: 'Superconductor', minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning strikes on frozen enemies always crit' },
     { id: 'staticice', name: 'Static Ice', minor: 'Frozen enemies zap a nearby enemy every second', major: 'Frozen enemies release a chain of bolts when they die' },
   ]),
   'yellow+green': synDef(['yellow', 'green'], [

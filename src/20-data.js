@@ -2,11 +2,13 @@
 
 // ---- weapon types (attack shape only; their set bonuses are rolled per run)
 const TYPES = {
-  dagger: { n: 'Dagger', cd: .42, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab' },
-  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash' },
-  axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave' },
-  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust' },
-  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback' },
+  dagger: { n: 'Dagger', cd: .34, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab', role: 'On-hit trigger', trait: 'Bleed: every 5th stab on the same enemy deals 30% of the last 5 stabs again',
+            fav: ['atkSpd', 'crit', 'critDmg', 'leech', 'speed'] },
+  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Versatile: +5% damage for each different weapon type you own', fav: [] },
+  axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
+  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
+  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor, always knocks back; Earth shields bash with your thorns',
+            fav: ['armor', 'maxHp', 'regen', 'knock', 'stun'] },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 const ICON = {
@@ -60,8 +62,8 @@ const PRIM = [
 // ---- tuning numbers
 const SUMHP = [22, 42, 74, 140];      // golem base HP by Earth weapon tier
 const SUM_CD = 4;                     // seconds between golem summons per Earth weapon
-const THF = [5, 9, 14, 23];           // flat thorn damage per Earth weapon, by tier
-const EHP = [10, 16, 24, 38];        // max HP per Earth weapon, by tier
+const THF = [8, 14, 22, 36];           // flat thorn damage per Earth weapon, by tier
+const EHP = [5, 9, 13, 20];        // max HP per Earth weapon, by tier
 const YEL_SPD = 1.4, YEL_DMG = .75;   // Lightning weapons: faster, softer
 const GOLD_TO_XP = .5;
 
@@ -74,7 +76,8 @@ const EPASS = {
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
     { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
     { k: 'burn',    v: 20,  base: 100, cap: 400, u: '%', t: 'burn damage' },
-    { k: 'burnDur', v: .5,  base: 3,   cap: 7,   u: 's', t: 'burn duration' },
+    { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
+    { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
     { k: 'boomR',   v: 10,  base: 100, cap: 200, u: '%', t: 'explosion size', req: BOOMERS },
   ],
   blue: [
@@ -87,9 +90,10 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 2,  base: 10,  cap: 30,  u: '%', t: "lightning damage (% of the target's current HP, down to 65% of its max HP)" },
-    { k: 'lpen',   v: 3,  base: 0,   cap: 40,  u: '',  t: 'lightning armor penetration' },
-    { k: 'arcCh',  v: 8,  base: 15,  cap: 100, u: '%', t: 'chance to arc on Lightning hits' },
+    { k: 'strike', v: 1,  base: 1,   cap: 10,  u: '%', t: "strike damage (% of the target's current HP)" },
+    { k: 'strikeCh', v: 5, base: 20, cap: 100, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
+    { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
+    { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
     { k: 'jumps',  v: 1,  base: 2,   cap: 7,   u: '',  t: 'arc jumps' },
     { k: 'lspd',   v: 8,  base: 0,   cap: 100, u: '%', t: 'Lightning weapon attack speed' },
     { k: 'lstun',  v: 4,  base: 0,   cap: 40,  u: '%', t: 'chance for lightning to stun' },
@@ -101,7 +105,7 @@ const EPASS = {
     { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' },
     { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' },
     { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' },
-    { k: 'thornFlat', v: 6,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
+    { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
     { k: 'thornPct',  v: 20, base: 100, cap: 600, u: '%', t: 'thorn damage multiplier' },
     { k: 'thornPen',  v: 4,  base: 0,   cap: 80,  u: '',  t: 'thorn armor penetration' },
   ],
@@ -133,6 +137,8 @@ const BUFFS = [
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
 let GOLD_RATE = .55;    // global scale on gold drops (enemies, goblins, caches)
+// gold is tight up to wave 20, then plentiful: endless doubles it and adds 10% per wave
+const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) : 1);
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }

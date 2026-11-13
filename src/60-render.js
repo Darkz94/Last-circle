@@ -295,7 +295,7 @@ function drawEnemy(c, e, T) {
   if (e.type === 'altar') { c.strokeStyle = 'rgba(200,100,255,.3)'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, r + 14 + Math.sin(T * 3) * 4, 0, TAU); c.stroke(); }
   if (e.type === 'goblin') { c.fillStyle = '#ffe9a8'; c.font = '700 11px "Chakra Petch"'; c.textAlign = 'center'; c.fillText(Math.max(0, e.escT).toFixed(0), 0, -r - 10); }
   if (e.elite) { c.strokeStyle = `rgba(242,193,78,${.65 + Math.sin(T * 6) * .3})`; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, r + 5, 0, TAU); c.stroke(); c.fillStyle = '#f2c14e'; c.beginPath(); c.moveTo(-6, -r - 7); c.lineTo(-6, -r - 14); c.lineTo(-3, -r - 10); c.lineTo(0, -r - 15); c.lineTo(3, -r - 10); c.lineTo(6, -r - 14); c.lineTo(6, -r - 7); c.closePath(); c.fill(); }
-  if (e.burnT > 0) { c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke(); }
+  if (e.burnT > 0) { c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 1.5 + Math.min(4, (e.bs ? e.bs.length : 1) * .5); c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke(); }
   if (e.chill > 0 && e.frozen <= 0) { c.strokeStyle = 'rgba(120,210,255,.95)'; c.lineWidth = 2; c.setLineDash([3, 3]); c.beginPath(); c.arc(0, 0, r + 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, e.chill / 4)); c.stroke(); c.setLineDash([]); }
   if (e.frozen > 0) { c.fillStyle = 'rgba(200,238,255,.3)'; c.strokeStyle = '#eefaff'; c.lineWidth = 1.5; c.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .5; c.lineTo(Math.cos(a) * (r + 6), Math.sin(a) * (r + 6)); } c.closePath(); c.fill(); c.stroke(); }
   if (e.stun > 0) { c.fillStyle = '#ffd23f'; for (let i = 0; i < 3; i++) { const a = T * 6 + i * TAU / 3; c.fillRect(Math.cos(a) * r * .9 - 1.5, -r - 7 + Math.sin(a) * 3, 3, 3); } }

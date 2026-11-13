@@ -71,7 +71,7 @@ function updFx(dt) {
 
 function step(dt) {
   if (S.hitstop > 0) { S.hitstop -= dt; updFx(dt * .2); return; }   // freeze-frame on heavy impacts
-  S.time += dt;
+  S.time += dt; if (S.phase === 'fight') S.rs.time += dt;
   S.avg = avgDmg();
   grid.build(S.enemies);
   updPlayer(dt);

@@ -7,7 +7,7 @@ function spawnEnemy(type, x, y) {
     id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
     col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
-    atkCd: 0, hitT: 0, burnT: 0, burnDps: 0, burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
+    atkCd: 0, hitT: 0, burnT: 0, bs: [], burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
     summonT: 4, slamT: 5, wob: Math.random() * TAU, dead: false, mode: 'walk', modeT: 0, dashCd: rnd(1, 3), dx: 0, dy: 0, kx: 0, ky: 0, escT: 10,
     dnAcc: 0, dnT: 0, dnCol: '#fff', dnCrit: false,
   };
@@ -35,9 +35,17 @@ function updEnemies(dt) {
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
       e.burnT -= dt; e.burnTick -= dt;
-      if (e.burnTick <= 0) { e.burnTick = .5; const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1; dmg(e, e.burnDps * .5 * fx2, { col: '#ff8a4a', pierce: true, dot: true }); }
+      if (e.burnTick <= 0) {
+        const iv = burnLife() / 6; e.burnTick = iv;
+        let d = 0, mx = 0;
+        for (const s of e.bs || []) { const t = Math.min(s.left, s.rate * iv); s.left -= t; d += t; if (s.left > .01) mx = Math.max(mx, s.left / s.rate); }
+        if (e.bs) e.bs = e.bs.filter(s => s.left > .01);
+        e.burnT = e.bs && e.bs.length ? mx + .001 : 0;
+        const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
+        if (d > 0) dmg(e, d * fx2, { col: '#ff8a4a', pierce: true, dot: true, src: 'burn' });
+      }
       if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
-      if (e.burnT <= 0) e.burnDps = 0;
+      if (e.burnT <= 0) e.bs = [];
       if (e.dead) continue;
     }
     const held = e.frozen > 0 || e.stun > 0;
@@ -86,7 +94,7 @@ function updEnemies(dt) {
       const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
-      if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, src.burnDps); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
+      if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, Math.max(0, ...(src.bs || []).map(x => x.left))); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
       if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
@@ -257,7 +265,7 @@ function updEvents(dt) {
     } else if (ev.k === 'spring') { if (d < ev.r) heal(tot.maxHp * .12 * dt); }
     else if (ev.k === 'cache' && d < 26) {
       ev.life = 0; sfx('buy');
-      const g = (10 + S.wave * 4) * GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0));
+      const g = (10 + S.wave * 4) * goldRate() * (1 + ((S.buff && S.buff.greed) || 0));
       for (let i = 0; i < 8; i++) addDrop('gold', g / 8, ev.x, ev.y);
       for (let i = 0; i < 4; i++) addDrop('xp', (5 + S.wave) / 4, ev.x, ev.y);
     }

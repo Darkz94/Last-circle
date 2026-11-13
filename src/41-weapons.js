@@ -38,25 +38,35 @@ function weaponAttack(w) {
 }
 function strike(w, e, dir) {
   let d = weaponDmg(w);
+  const ty = w.type, spreadM = ty === 'axe' ? 1.5 : 1;   // Status spreader: axes apply their element 50% more often
+  if (ty === 'spear' && Math.hypot(e.x - S.p.x, e.y - S.p.y) - e.r > TYPES.spear.range * tot.rangeM * .55) d *= 1.25;   // Reach
+  if (ty === 'sword') d *= 1 + .05 * TYPE_KEYS.filter(k => S.tcounts[k]).length;   // Versatile
   const ti = sv('titan'); if (ti) d += tot.maxHp * ti / 100;
   if (w.evo && w.el === 'green') d += tot.maxHp * .03;
   S.hitN++;
   const tenth = rel('tenth') && S.hitN % 10 === 0;
   const crit = tenth || Math.random() * 100 < tot.crit;
   if (crit) { d *= tot.critMult + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
-  const dealt = dmg(e, d, { col: COL[w.el], crit });
+  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon' });
+  S.rs.wt[ty] = (S.rs.wt[ty] || 0) + dealt; if (crit) S.rs.crits++;
   if (tot.leech) heal(dealt * tot.leech / 100);
+  if (ty === 'dagger' && !e.dead) {
+    // Bleed: every 5th dagger stab on the same enemy deals 30% of the last 5 stabs again, instantly
+    const b = e.dg || (e.dg = { n: 0, sum: 0 }); b.n++; b.sum += dealt;
+    if (b.n >= 5) { const bd = b.sum * .3; b.n = 0; b.sum = 0; dmg(e, bd, { tr: true, col: '#d0213f', src: 'bleed' }); puff(e.x, e.y, '#b0102c', 5, 110, .35); }
+  }
+  if (ty === 'shield' && w.el === 'green' && !e.dead) thorns(e, true);   // Earth shields bash with your thorns
   if (Math.random() * 100 < tot.stun) stun(e, .6);
   knock(e, dir, TYPES[w.type].knock || Math.random() * 100 < tot.knock ? 30 : 3);
   // the element's own small effect
   if (w.el === 'red') {
-    if (w.evo || Math.random() * 100 < E('red', 'ign')) burn(e, burnFrom(d));
+    if (w.evo || Math.random() * 100 < E('red', 'ign') * spreadM) burn(e, burnFrom(dealt));
     if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { ignite: true, small: true });
   } else if (w.el === 'yellow') {
-    if (Math.random() * 100 < E('yellow', 'arcCh')) chainFrom(e, .8, E('yellow', 'jumps') + sv('chain'));
-    if (w.evo && Math.random() < .35) bolt(e, 1);
+    if (Math.random() * 100 < E('yellow', 'strikeCh') * spreadM) bolt(e, 1, { pct: true });
+    if (w.evo && Math.random() < .35) bolt(e, 1, { pct: true });
   } else if (w.el === 'blue') {
-    if (Math.random() * 100 < E('blue', 'chillCh')) chill(e, (w.tier >= 2 ? 2 : 1) + (w.evo ? 1 : 0));
+    if (Math.random() * 100 < E('blue', 'chillCh') * spreadM) chill(e, (w.tier >= 2 ? 2 : 1) + (w.evo ? 1 : 0));
     if (w.evo && Math.random() < .12) freeze(e);
   }
   const hs = S.hk.hit;

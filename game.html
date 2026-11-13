@@ -142,6 +142,17 @@ h3 span{text-transform:none;letter-spacing:.02em}
   .goldbox{font-size:17px}
 }
 @media (max-width:420px){ .cols{grid-template-columns:1fr} .card .t{font-size:13px} }
+.tiles{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:6px}
+.tile{background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 9px;display:flex;flex-direction:column;gap:1px}
+.tile span{font-size:11px;color:#9a978e}
+.tile b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
+.tile em{font-style:normal;font-size:11px;color:#9a978e}
+.bar{margin-bottom:7px}
+.bar .bl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
+.bar .bl b{color:var(--text);font-variant-numeric:tabular-nums}
+.bar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
+.bar .bt i{display:block;height:100%;border-radius:4px}
+@media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
 
 </style>
 </head>
@@ -161,7 +172,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 11;
+const GAME_VERSION = 12;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -385,11 +396,13 @@ const sfx = (n, p) => AU.play(n, p);
 
 // ---- weapon types (attack shape only; their set bonuses are rolled per run)
 const TYPES = {
-  dagger: { n: 'Dagger', cd: .42, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab' },
-  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash' },
-  axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave' },
-  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust' },
-  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback' },
+  dagger: { n: 'Dagger', cd: .34, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab', role: 'On-hit trigger', trait: 'Bleed: every 5th stab on the same enemy deals 30% of the last 5 stabs again',
+            fav: ['atkSpd', 'crit', 'critDmg', 'leech', 'speed'] },
+  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Versatile: +5% damage for each different weapon type you own', fav: [] },
+  axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
+  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
+  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor, always knocks back; Earth shields bash with your thorns',
+            fav: ['armor', 'maxHp', 'regen', 'knock', 'stun'] },
 };
 const TYPE_KEYS = Object.keys(TYPES);
 const ICON = {
@@ -443,8 +456,8 @@ const PRIM = [
 // ---- tuning numbers
 const SUMHP = [22, 42, 74, 140];      // golem base HP by Earth weapon tier
 const SUM_CD = 4;                     // seconds between golem summons per Earth weapon
-const THF = [5, 9, 14, 23];           // flat thorn damage per Earth weapon, by tier
-const EHP = [10, 16, 24, 38];        // max HP per Earth weapon, by tier
+const THF = [8, 14, 22, 36];           // flat thorn damage per Earth weapon, by tier
+const EHP = [5, 9, 13, 20];        // max HP per Earth weapon, by tier
 const YEL_SPD = 1.4, YEL_DMG = .75;   // Lightning weapons: faster, softer
 const GOLD_TO_XP = .5;
 
@@ -457,7 +470,8 @@ const EPASS = {
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
     { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
     { k: 'burn',    v: 20,  base: 100, cap: 400, u: '%', t: 'burn damage' },
-    { k: 'burnDur', v: .5,  base: 3,   cap: 7,   u: 's', t: 'burn duration' },
+    { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
+    { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
     { k: 'boomR',   v: 10,  base: 100, cap: 200, u: '%', t: 'explosion size', req: BOOMERS },
   ],
   blue: [
@@ -470,9 +484,10 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 2,  base: 10,  cap: 30,  u: '%', t: "lightning damage (% of the target's current HP, down to 65% of its max HP)" },
-    { k: 'lpen',   v: 3,  base: 0,   cap: 40,  u: '',  t: 'lightning armor penetration' },
-    { k: 'arcCh',  v: 8,  base: 15,  cap: 100, u: '%', t: 'chance to arc on Lightning hits' },
+    { k: 'strike', v: 1,  base: 1,   cap: 10,  u: '%', t: "strike damage (% of the target's current HP)" },
+    { k: 'strikeCh', v: 5, base: 20, cap: 100, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
+    { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
+    { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
     { k: 'jumps',  v: 1,  base: 2,   cap: 7,   u: '',  t: 'arc jumps' },
     { k: 'lspd',   v: 8,  base: 0,   cap: 100, u: '%', t: 'Lightning weapon attack speed' },
     { k: 'lstun',  v: 4,  base: 0,   cap: 40,  u: '%', t: 'chance for lightning to stun' },
@@ -484,7 +499,7 @@ const EPASS = {
     { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' },
     { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' },
     { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' },
-    { k: 'thornFlat', v: 6,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
+    { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
     { k: 'thornPct',  v: 20, base: 100, cap: 600, u: '%', t: 'thorn damage multiplier' },
     { k: 'thornPen',  v: 4,  base: 0,   cap: 80,  u: '',  t: 'thorn armor penetration' },
   ],
@@ -516,6 +531,8 @@ const BUFFS = [
 // ---- difficulty curve: steady to wave 20, brutal after
 // from wave 6 enemies toughen on a curve, so un-upgraded weapons fall behind well before 20
 let GOLD_RATE = .55;    // global scale on gold drops (enemies, goblins, caches)
+// gold is tight up to wave 20, then plentiful: endless doubles it and adds 10% per wave
+const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) : 1);
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
@@ -552,8 +569,8 @@ const ABIL = {
       elHit: true, hit(a, s, w, e, d) { if (Math.random() * 100 < a.v[s]) boom(e.x, e.y, boomR(a.r[s]), d * .9, FIRE, { ignite: true, small: true }); } },
     { id: 'fireball', name: 'Fireball', v: [3, 2.2, 1.5], r: [55, 70, 90], m: [1.5, 2, 3], d: (a, s) => `Every ${a.v[s]}s hurl a fireball that explodes on the first enemy it hits`,
       fire(a, s) { const an = aim(), p = S.p; sfx('whoosh'); S.projs.push({ k: 'fireball', x: p.x, y: p.y, vx: Math.cos(an) * 400, vy: Math.sin(an) * 400, life: 1.6, rad: boomR(a.r[s]), dmg: S.avg * a.m[s] }); } },
-    { id: 'bombs', name: 'Bomb Line', v: [5, 4, 3], n: [4, 6, 9], m: [1, 1.3, 1.8], d: (a, s) => `Every ${a.v[s]}s a line of ${a.n[s]} bombs blows up everything in one direction`,
-      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y, dm = S.avg * a.m[s]; for (let i = 0; i < a.n[s]; i++) { const d = 30 + i * 30; later(i * .07, () => boom(ox + Math.cos(an) * d, oy + Math.sin(an) * d, boomR(36), dm, FIRE, { ignite: true, small: true })); } } },
+    { id: 'bombs', name: 'Bomb Line', v: [5, 4, 3], n: [10, 14, 20], m: [1, 1.3, 1.8], d: (a, s) => `Every ${a.v[s]}s a line of ${a.n[s]} bombs blows up everything in one direction, right across the arena`,
+      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y, dm = S.avg * a.m[s]; for (let i = 0; i < a.n[s]; i++) { const d = 30 + i * 620 / (a.n[s] - 1); later(i * .05, () => boom(ox + Math.cos(an) * d, oy + Math.sin(an) * d, boomR(36), dm, FIRE, { ignite: true, small: true })); } } },
     { id: 'flame', name: 'Flamethrower', v: [4.5, 3.5, 2.5], rg: [120, 150, 185], m: [.2, .3, .45], d: (a, s) => `Every ${a.v[s]}s breathe a cone of fire (${a.rg[s]} range) that ignites all it touches`,
       fire(a, s) { sfx('flame'); S.flames.push({ t: 0, dur: 1, dir: aim(), rg: a.rg[s], dmg: S.avg * a.m[s], tick: 0 }); } },
     { id: 'pyre', name: 'Pyre', v: [20, 35, 60], d: (a, s) => `Burning enemies explode on death for ${a.v[s]}% of their max HP`,
@@ -566,8 +583,8 @@ const ABIL = {
       frame(a, s, dt) { S.trailT -= dt; if (S.trailT <= 0 && S.moving) { S.trailT = .12; if (S.zones.length < 90) S.zones.push({ k: 'fire', x: S.p.x, y: S.p.y, r: 18, life: a.v[s], max: a.v[s], tick: 0, dps: S.avg * a.m[s] }); } } },
     { id: 'ring', name: 'Ring of Fire', v: [6, 5, 4], rg: [120, 160, 220], m: [.8, 1.1, 1.5], d: (a, s) => `Every ${a.v[s]}s a ring of flame bursts out from you (${a.rg[s]} range)`,
       fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s], spd: 320, hit: new Set(), dmg: S.avg * a.m[s] }); } },
-    { id: 'inferno', name: 'Inferno Aura', v: [55, 75, 100], cd: .5, d: (a, s) => `Enemies within ${a.v[s]} range of you catch fire`,
-      fire(a, s) { eachNear(S.p.x, S.p.y, a.v[s], e => burn(e, S.avg * .3, 2)); } },
+    { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .25, d: (a, s) => `Every 2s, enemies within ${a.r[s]} range of you burn for ${a.v[s]}% of your total weapon damage (its own burn, not a stack)`,
+      fire(a, s) { const tot2 = S.weapons.reduce((n, w) => n + weaponDmg(w), 0) * a.v[s] / 100; eachNear(S.p.x, S.p.y, a.r[s], e => { if (S.time < (e.auraN || 0)) return; e.auraN = S.time + 2; burn(e, burnFrom(tot2), { aura: true }); }); } },
     { id: 'phoenix', name: 'Phoenix', v: [30, 50, 80], d: (a, s) => `Once per wave, when you would die, explode and revive with ${a.v[s]}% HP`,
       death(a, s) { if (S.phoenixUsed) return false; S.phoenixUsed = true; S.p.hp = tot.maxHp * a.v[s] / 100; S.p.inv = 2; sfx('revive'); boom(S.p.x, S.p.y, 160, S.avg * 4, '#ffb347', { ignite: true }); banner('Phoenix'); return true; } },
     { id: 'sprite', name: 'Fire Sprites', v: [8, 6, 4], r: [60, 75, 95], m: [2, 2.6, 3.4], d: (a, s) => `Every ${a.v[s]}s a fire sprite waddles out and hurls itself at the nearest enemy, exploding and setting it ablaze`,
@@ -577,7 +594,7 @@ const ABIL = {
   // ------------------------------------------------------------------ FROST: control the fight; damage comes from the cold itself
   blue: defs('blue', [
     { id: 'shatter', name: 'Shatter', v: [8, 12, 18], d: (a, s) => `Frozen enemies shatter on death for ${a.v[s]}% of their max HP (level-ups take it to 30%)`,
-      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, E('blue', 'shatterR'), e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, pierce: true }); } },
+      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, E('blue', 'shatterR'), e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, pierce: true, src: 'shatter' }); } },
     { id: 'gust', name: 'Frost Gust', v: [5, 4, 3], n: [2, 3, 4], rg: [160, 200, 240], d: (a, s) => `Every ${a.v[s]}s a freezing gust blasts enemies back with ${a.n[s]} chill across a wide cone`,
       fire(a, s) { const p = S.p, an = aim(); sfx('gust'); FX({ k: 'gust', x: p.x, y: p.y, dir: an, arc: Math.PI / 2, r: a.rg[s], life: .45 }); eachNear(p.x, p.y, a.rg[s], e => { if (!inCone(e, p.x, p.y, an, Math.PI / 4, a.rg[s])) return; dmg(e, S.avg * .5, { col: COL.blue }); chill(e, a.n[s]); knock(e, an, 30); }); } },
     { id: 'pillar', name: 'Ice Pillar', v: [7, 6, 4.5], life: [5, 7, 9], d: (a, s) => `Every ${a.v[s]}s raise an ice pillar among the enemies that chills and frost-burns everything near it for ${a.life[s]}s`,
@@ -610,10 +627,10 @@ const ABIL = {
 
   // ------------------------------------------------------------------ LIGHTNING: speed. Hits take a % of the enemy's current HP.
   yellow: defs('yellow', [
-    { id: 'clap', name: 'Thunderclap', v: [6, 4, 2.5], n: [1, 2, 4], d: (a, s) => `Every ${a.v[s]}s lightning strikes ${pl(a.n[s], 'random enemy', 'random enemies')} for 1.5× strike damage`,
+    { id: 'clap', name: 'Thunderclap', v: [6, 4, 2.5], n: [1, 2, 4], d: (a, s) => `Every ${a.v[s]}s lightning strikes ${pl(a.n[s], 'random enemy', 'random enemies')} for 150% of your average weapon hit`,
       fire(a, s) { shuffle(inArena()).slice(0, a.n[s]).forEach(e => bolt(e, 1.5)); } },
-    { id: 'call', name: 'Storm Call', v: [10, 18, 30], d: (a, s) => `Lightning weapon hits have ${a.v[s]}% chance to call a strike on a random enemy`,
-      elHit: true, hit(a, s) { if (Math.random() * 100 < a.v[s]) { const tg = pick(inArena()); if (tg) bolt(tg, 1); } } },
+    { id: 'call', name: 'Storm Call', v: [15, 25, 40], d: (a, s) => `Every lightning strike has ${a.v[s]}% chance to call another strike on a random enemy` },
+    { id: 'smite', name: 'Execute', v: [5, 10, 20], d: (a, s) => `Lightning strikes execute non-boss enemies below ${a.v[s]}% HP (no on-kill effects)` },
     { id: 'twice', name: 'Strikes Twice', v: [25, 50, 90], d: (a, s) => `All lightning has ${a.v[s]}% chance to hit again` },
     { id: 'chain', name: 'Bounce', v: [1, 2, 4], d: (a, s) => `Strikes and arcs bounce to +${pl(a.v[s], 'more enemy', 'more enemies')}` },
     { id: 'overload', name: 'Overload', v: [40, 60, 100], r: [40, 55, 75], d: (a, s) => `Lightning hits explode for ${a.v[s]}% of their damage around the target` },
@@ -629,7 +646,7 @@ const ABIL = {
     { id: 'storm', name: 'Storm Cloud', v: [1.2, .8, .5], m: [.6, .8, 1], d: (a, s) => `A storm cloud follows you, striking a nearby enemy every ${a.v[s]}s`,
       fire(a, s) { const p = S.p, tg = nearest(p.x, p.y, 170); if (tg) bolt(tg, a.m[s], { from: { x: p.x + Math.cos(S.time) * 20, y: p.y - 40 } }); } },
     { id: 'current', name: 'Live Current', v: [15, 30, 50], d: (a, s) => `Lightning weapons attack ${a.v[s]}% faster` },
-    { id: 'plasma', name: 'Plasma Beam', v: [.15, .22, .3], rg: [130, 160, 200], d: (a, s) => `A plasma beam locks onto the nearest enemy within ${a.rg[s]}, burning ${pct(a.v[s])}% of strike damage 10 times a second`,
+    { id: 'plasma', name: 'Plasma Beam', v: [.15, .22, .3], rg: [130, 160, 200], d: (a, s) => `A plasma beam locks onto the nearest enemy within ${a.rg[s]}, zapping it for ${pct(a.v[s])}% of your average weapon hit 10 times a second`,
       frame(a, s, dt) { const tg = nearest(S.p.x, S.p.y, a.rg[s]); S.beam = tg; if (!tg) return; S.beamT -= dt; if (S.beamT <= 0) { S.beamT = .1; bolt(tg, a.v[s], { silent: true }); } } },
     { id: 'tempest', name: 'Lightning Storm', v: [8, 6, 4], i: [.4, .3, .2], d: (a, s) => `Every ${a.v[s]}s a storm settles over the enemies for 4s, striking inside it every ${a.i[s]}s`,
       fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); S.zones.push({ k: 'storm', x: tg.x, y: tg.y, r: 85, life: 4, max: 4, tick: 0, int: a.i[s] }); } } },
@@ -652,7 +669,7 @@ const ABIL = {
       gHit(a, s, g, e, d) { heal(d * a.v[s] / 100); } },
     { id: 'vines', name: 'Grasping Earth', v: [.6, 1, 1.6], d: (a, s) => `Golems root enemies they hit in place for ${a.v[s]}s`,
       gHit(a, s, g, e) { if (!e.dead) stun(e, a.v[s]); } },
-    { id: 'bloom', name: 'Mending Earth', v: [10, 7, 5], h: [8, 12, 20], d: (a, s) => `Every ${a.v[s]}s the ground heals you for ${a.h[s]}% of your max HP`,
+    { id: 'bloom', name: 'Mending Earth', v: [10, 7, 5], h: [6, 9, 14], d: (a, s) => `Every ${a.v[s]}s the ground heals you for ${a.h[s]}% of your max HP`,
       fire(a, s) { heal(tot.maxHp * a.h[s] / 100); sfx('level'); FX({ k: 'boom', x: S.p.x, y: S.p.y, r: 50, life: .6, col: COL.green }); } },
     { id: 'treant', name: 'Colossus', v: [15, 10, 6], m: [8, 12, 18], d: (a, s) => `A Colossus with ${a.m[s]}× golem HP guards you and reforms ${a.v[s]}s after falling`,
       frame(a, s, dt) { if (S.colossus) return; S.colT -= dt; if (S.colT > 0) return; const hp = golemHp(bestEarthTier(), a.m[s]); S.colossus = { x: S.p.x, y: S.p.y, hp, maxHp: hp, vx: 0, vy: 0, a: 0, hitCd: 0, big: true, col: true, seed: 1.3 }; sfx('rumble'); FX({ k: 'ring', x: S.p.x, y: S.p.y, r: 40, life: .4, col: COL.green }); } },
@@ -664,13 +681,13 @@ const ABIL = {
       fire(a, s) { const n = a.n[s], off = Math.random() * TAU, p = S.p; sfx('rumble', .5); for (let i = 0; i < n; i++) { const an = off + i / n * TAU; S.projs.push({ k: 'stone', x: p.x, y: p.y, vx: Math.cos(an) * 380, vy: Math.sin(an) * 380, life: .75, dmg: tot.maxHp * a.m[s], hit: new Set(), pierce: 1 }); } } },
     { id: 'quake', name: 'Earthquake', v: [8, 6, 4.5], r: [110, 140, 180], st: [.6, .9, 1.2], m: [.25, .35, .5], d: (a, s) => `Every ${a.v[s]}s slam the ground for ${pct(a.m[s])}% of your max HP, stunning everything within ${a.r[s]}`,
       fire(a, s) { const p = S.p, r = a.r[s]; sfx('rumble', 1.4); S.shake = Math.min(12, S.shake + 8); hitstop(.05); FX({ k: 'boom', x: p.x, y: p.y, r, life: .5, col: ROCK }); for (let i = 0; i < 10; i++) { const an = i / 10 * TAU + rnd(-.2, .2), l = r * rnd(.6, 1); FX({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(an) * l, y2: p.y + Math.sin(an) * l, life: .7 }); } eachNear(p.x, p.y, r, e => { dmg(e, tot.maxHp * a.m[s], { col: ROCK }); stun(e, a.st[s]); }); } },
-    { id: 'fissure', name: 'Fissure', v: [6, 5, 4], n: [6, 8, 10], d: (a, s) => `Every ${a.v[s]}s the ground cracks open towards the enemy, rooting and hitting everything along it`,
-      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y; sfx('rumble'); for (let i = 0; i < a.n[s]; i++) { const d1 = 20 + i * 26; later(i * .045, () => { const x = ox + Math.cos(an) * d1, y = oy + Math.sin(an) * d1; FX({ k: 'crack', x1: x, y1: y, x2: x + Math.cos(an) * 26 + rnd(-6, 6), y2: y + Math.sin(an) * 26 + rnd(-6, 6), life: 1.2 }); boom(x, y, 24, tot.maxHp * .15, ROCK, { stun: 1, small: true, quiet: true }); }); } } },
-    { id: 'stoneskin', name: 'Stone Skin', v: [4, 8, 14], hp: [10, 20, 35], d: (a, s) => `+${a.v[s]} armor and +${a.hp[s]}% max HP`,
+    { id: 'fissure', name: 'Fissure', v: [6, 5, 4], n: [14, 18, 22], d: (a, s) => `Every ${a.v[s]}s the ground cracks open towards the enemy, rooting and hitting everything along it`,
+      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y; sfx('rumble'); for (let i = 0; i < a.n[s]; i++) { const d1 = 20 + i * 620 / (a.n[s] - 1); later(i * .035, () => { const x = ox + Math.cos(an) * d1, y = oy + Math.sin(an) * d1; FX({ k: 'crack', x1: x, y1: y, x2: x + Math.cos(an) * (620 / (a.n[s] - 1) + 4) + rnd(-6, 6), y2: y + Math.sin(an) * (620 / (a.n[s] - 1) + 4) + rnd(-6, 6), life: 1.2 }); boom(x, y, 24, tot.maxHp * .15, ROCK, { stun: 1, small: true, quiet: true }); }); } } },
+    { id: 'stoneskin', name: 'Stone Skin', v: [3, 6, 10], hp: [8, 15, 25], d: (a, s) => `+${a.v[s]} armor and +${a.hp[s]}% max HP`,
       stats(a, s, t) { t.armor += a.v[s]; t.hpMul *= 1 + a.hp[s] / 100; } },
     { id: 'rockfall', name: 'Rockfall', v: [4, 3, 2], n: [2, 3, 5], m: [.25, .32, .42], d: (a, s) => `Every ${a.v[s]}s ${a.n[s]} rocks fall on enemies, stunning them`,
       fire(a, s) { const dm = tot.maxHp * a.m[s]; shuffle(inArena()).slice(0, a.n[s]).forEach((e, i) => { const x = e.x, y = e.y; later(i * .1, () => FX({ k: 'warn', x, y, r: 30, life: .35, col: ROCK })); later(i * .1 + .35, () => { boom(x, y, 30, dm, ROCK, { stun: .5, small: true }); puff(x, y, '#8a7350', 6, 110, .4); }); }); } },
-    { id: 'thornskin', name: 'Thorn Skin', v: [8, 18, 35], p: [30, 60, 120], d: (a, s) => `+${a.v[s]} thorn damage and +${a.p[s]}% thorn damage multiplier`,
+    { id: 'thornskin', name: 'Thorn Skin', v: [12, 26, 50], p: [30, 60, 120], d: (a, s) => `+${a.v[s]} thorn damage and +${a.p[s]}% thorn damage multiplier`,
       stats(a, s, t) { t.thornFlat += a.v[s]; t.thornPct += a.p[s]; } },
     { id: 'retri', name: 'Retribution', v: [50, 100, 200], d: (a, s) => `Thorns also hurl back ${a.v[s]}% of the damage each hit would deal` },
     { id: 'titan', name: "Titan's Grip", v: [1, 2, 3.5], d: (a, s) => `Weapon hits deal bonus damage equal to ${a.v[s]}% of your max HP` },
@@ -683,7 +700,7 @@ const AB_COUNT = Object.keys(AB).length;
 // ===== boss relics: after every boss you pick 1 of 3. Rule-benders that last the whole run. Same hooks as abilities.
 const RELICS = [
   { id: 'exec', name: "Executioner's Mark", col: '#e5484d', d: 'Weapon hits instantly kill normal enemies below 15% HP',
-    hit(a, s, w, e) { if (!e.dead && !e.boss && !e.elite && !e.special && e.hp < e.maxHp * .15) dmg(e, e.hp + 1, { tr: true, col: '#ffffff' }); } },
+    hit(a, s, w, e) { if (!e.dead && !e.boss && !e.elite && !e.special && e.hp < e.maxHp * .15) dmg(e, e.hp + 1, { tr: true, col: '#ffffff', src: 'execute' }); } },
   { id: 'tenth', name: 'Tenth Strike', col: '#ffd23f', d: 'Every 10th weapon hit is a guaranteed crit with +100% crit damage' },
   { id: 'frostfire', name: 'Frostfire Brand', col: '#c08bff', d: 'Burning enemies are slowed by 30% and count as chilled for damage bonuses' },
   { id: 'magnet', name: 'Lodestone Heart', col: '#f2c14e', d: '+200% pickup range; every pickup heals 1 HP', stats(a, s, t) { t.pickup += 200; } },
@@ -699,6 +716,7 @@ const RELICS = [
   { id: 'clock', name: 'Overclock', col: '#ffd23f', d: 'All timed abilities recharge 25% faster' },
   { id: 'hide', name: 'Thick Hide', col: '#c9a25a', d: 'Take 15% less damage from every hit' },
   { id: 'slayer', name: 'Giant Slayer', col: '#ff5a3c', d: '+60% damage to bosses and elites', mult(a, s, e) { return e.boss || e.elite ? 1.6 : 1; } },
+  { id: 'combust', name: 'Combustion', col: '#ff8a2a', d: 'Every new ignite instantly sets off all the burn already on that enemy, then starts a fresh burn' },
   { id: 'vamp', name: 'Vampiric Sigil', col: '#e5484d', d: '+4% life steal', stats(a, s, t) { t.leech += 4; } },
 ];
 const RELIC = {}; for (const r of RELICS) RELIC[r.id] = r;
@@ -730,7 +748,7 @@ const SYN_PAIRS = {
     { id: 'molten', name: 'Molten Thorns', minor: 'Thorns set attackers on fire', major: 'Thorns deal double damage to burning enemies' },
   ]),
   'yellow+blue': synDef(['yellow', 'blue'], [
-    { id: 'supercon', name: 'Superconductor', minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning ignores its 65% floor on frozen enemies' },
+    { id: 'supercon', name: 'Superconductor', minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning strikes on frozen enemies always crit' },
     { id: 'staticice', name: 'Static Ice', minor: 'Frozen enemies zap a nearby enemy every second', major: 'Frozen enemies release a chain of bolts when they die' },
   ]),
   'yellow+green': synDef(['yellow', 'green'], [
@@ -842,12 +860,18 @@ function codexSee(kind, id) { if (!CODEX[kind][id]) { CODEX[kind][id] = 1; LS.se
 const bestWave = () => +LS.get('lastCircleBest3', 0) || 0;
 function saveBest() { if (S.wave > bestWave()) LS.set('lastCircleBest3', S.wave); }
 
-const rollAffixes = () => shuffle([...STAT_KEYS]).slice(0, 2);
-const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes() });
+// weighted stat rolls: a weapon type's favoured stats are 3x as likely (swords have no favourites)
+function rollStats(type, n) {
+  const fav = (type && TYPES[type].fav) || [], pool = STAT_KEYS.map(k => [k, fav.includes(k) ? 3 : 1]), out = [];
+  while (out.length < n && pool.length) { let r = Math.random() * pool.reduce((a, p) => a + p[1], 0), i = 0; while ((r -= pool[i][1]) > 0) i++; out.push(pool[i][0]); pool.splice(i, 1); }
+  return out;
+}
+const rollAffixes = type => rollStats(type, 2);
+const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes(type) });
 function rollRun() {
   const sets = {}, tsets = {};
   for (const c of ORDER) sets[c] = shuffle([...ABIL[c]]).slice(0, 3);
-  for (const t of TYPE_KEYS) tsets[t] = shuffle([...STAT_KEYS]).slice(0, 3);
+  for (const t of TYPE_KEYS) tsets[t] = rollStats(t, 3);
   const types = shuffle([...TYPE_KEYS]);
   return { sets, tsets, syn: rollSyn(), bosses: rollBosses(), starters: ORDER.map((c, i) => makeWeapon(types[i], c, 0)) };
 }
@@ -855,6 +879,7 @@ function rollRun() {
 const WAVE_LISTS = ['haz', 'eorbs', 'vents', 'enemies', 'golems', 'projs', 'flames', 'pillars', 'zones', 'rings', 'orbs', 'rods', 'sprites', 'spirits', 'wizards', 'walls', 'evs', 'tele', 'later', 'fx', 'pt', 'texts', 'drops', 'dying'];
 function freshState(sets, tsets, synRoll, bossOrder) {
   const s = {
+    rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
     st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0 },
@@ -907,6 +932,7 @@ function recalc() {
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
+  t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);
@@ -954,7 +980,7 @@ function saveRun() {
     v: 2, st: S.st, ep: S.ep, tsets: S.typeSets, sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(a => a.id)])),
     level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
     weapons: S.weapons.map(packW), relics: S.relics, syn: S.synRoll, bosses: S.bossOrder, pendingRelic: S.pendingRelic, relicOffer: S.relicOffer,
-    phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
+    rs: S.rs, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
     lvRerollBuys: S.lvRerollBuys, lvRerolls: S.lvRerolls, shopLocked: S.shopLocked, lockedOffers: S.lockedOffers && S.lockedOffers.map(packW), shopWave: S.shopWave,
     perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(packCard) : null, lockedCards: S.lockedCards.map(packCard),
   });
@@ -973,7 +999,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => d.syn[pairKey(a, b)] === 0 || d.syn[pairKey(a, b)] === 1);
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, d.st); S.ep = d.ep;
+  Object.assign(S.st, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;
@@ -999,7 +1025,7 @@ function puff(x, y, col, n, spd, life) {
 }
 function banner(text, small) { S.banner = { text, t: small ? .2 : 0, small }; }
 function hitstop(t) { if (S.time - S.lastStop > .45) { S.hitstop = t; S.lastStop = S.time; } }
-function heal(v) { S.p.hp = Math.min(tot.maxHp, S.p.hp + v); }
+function heal(v) { const b = S.p.hp; S.p.hp = Math.min(tot.maxHp, S.p.hp + v); if (S.rs) S.rs.healed += Math.max(0, S.p.hp - b); }
 function addText(x, y, v, col, crit) {
   if (S.texts.length > 46) S.texts.shift();
   S.texts.push({ x, y, s: String(Math.max(1, Math.round(v))) + (crit ? '!' : ''), col, crit, t: 0, big: v > S.avg * 4 });
@@ -1022,6 +1048,7 @@ function dmg(e, amt, o) {
     d *= m;
     if (!o.pierce) d = Math.max(1, d - Math.max(0, e.armor - tot.pen));
   }
+  const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
   e.hp -= d; e.hitT = .12;
   e.dnAcc += d; if (e.dnT <= 0) e.dnT = .14; e.dnCol = o.col || '#ffffff'; if (o.crit) e.dnCrit = true;
   if (e.hp <= .001) { e.dead = true; e.killer = o.src; flushDn(e); S.dying.push(e); }
@@ -1029,18 +1056,33 @@ function dmg(e, amt, o) {
 }
 let inSteam = false;
 const isCold = e => e.chill > 0 || e.frozen > 0 || (e.burnT > 0 && rel('frostfire'));
-const burnFrom = hit => hit * .38 * E('red', 'burn') / 100;
-function burn(e, dps, dur) {
-  if (e.dead) return;
+// burn: every ignite is its own stack worth 100% of the hit that caused it (x burn damage %).
+// Stacks never refresh; once an enemy holds its max, new ignites fizzle (unless Combustion).
+const burnLife = () => 3 / (E('red', 'burnSpd') / 100);
+const burnFrom = hit => hit * E('red', 'burn') / 100;
+function burnLeft(e) { let n = 0; if (e.bs) for (const s of e.bs) n += s.left; return n; }
+function burn(e, total, o) {
+  if (e.dead || !(total > 0)) return;
   if (e.frozen > 0 && !inSteam && syn('thermal') >= 0) {
     // Thermal Shock: fire on a frozen enemy bursts into steam
     inSteam = true; e.frozen = 0;
-    boom(e.x, e.y, 60, S.avg * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, freezeCh: syn('thermal') ? 100 : 0 });
+    boom(e.x, e.y, 60, S.avg * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, src: 'steam', freezeCh: syn('thermal') ? 100 : 0 });
     inSteam = false;
   }
-  if (e.burnT <= 0) sfx('burn');
-  e.burnT = Math.max(e.burnT, dur || E('red', 'burnDur'));
-  e.burnDps = Math.max(e.burnDps, dps);
+  if (!e.bs) e.bs = [];
+  const aura = !!(o && o.aura);
+  if (!aura) {
+    if (rel('combust')) {
+      // Combustion: every new ignite sets off the fire already on the enemy all at once
+      const rem = burnLeft(e);
+      if (rem > 0) { e.bs = []; dmg(e, rem, { col: '#ffb347', pierce: true, dot: true, src: 'burn', crit: true }); puff(e.x, e.y, '#ffb347', 6, 140, .35); if (e.dead) return; }
+    } else if (e.bs.reduce((n, s) => n + (s.aura ? 0 : 1), 0) >= E('red', 'bstack')) return;
+  }
+  if (e.burnT <= 0) { sfx('burn'); e.burnTick = 0; }
+  const life = burnLife();
+  e.bs.push({ left: total, rate: total / life, aura });
+  if (e.bs.length > S.rs.stacks) S.rs.stacks = e.bs.length;
+  e.burnT = Math.max(e.burnT, life);
 }
 function freeze(e) {
   if (e.dead || e.fixed) return;
@@ -1071,8 +1113,8 @@ function boom(x, y, rad, amt, col, o) {
     if (syn('overheat')) shuffle(near).slice(0, 3).forEach(e => bolt(e, .8)); else if (near.length) bolt(pick(near), .8, { noChain: true, from: { x, y } });
   }
   eachNear(x, y, rad, e => {
-    dmg(e, amt, { col, pierce: o.pierce, src: o.src });
-    if (o.ignite) burn(e, burnFrom(amt));
+    const dd = dmg(e, amt, { col, pierce: o.pierce, src: o.src || 'explosion' });
+    if (o.ignite) burn(e, burnFrom(dd));
     if (o.chill) chill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
     if (o.stun) stun(e, o.stun);
@@ -1098,35 +1140,45 @@ function inCone(e, x, y, dir, half, range) {
 }
 function addPillar(x, y, life, r) { if (S.pillars.length >= 6) S.pillars.shift(); S.pillars.push({ x, y, life, tick: 0, r }); sfx('freeze'); FX({ k: 'ring', x, y, r, life: .4, col: ICE }); }
 
-const LFLOOR = .65;
-// ---- lightning: every hit takes a % of the target's CURRENT HP (bosses and elites take a quarter of it),
-// reduced by armor unless you have lightning penetration. Your damage stats don't touch it.
-function lightningDmg(e, mult) {
-  let p = E('yellow', 'strike') * mult;
+// ---- lightning. Two kinds:
+//  * the Lightning strike (called by Lightning weapon hits, plus its arcs, repeats and calls) takes a % of the
+//    target's CURRENT HP, so it fades as the enemy weakens and never kills on its own. Elites take half the %,
+//    bosses a quarter. Crits multiply the %; damage % and flat damage don't touch it.
+//  * every other bolt (abilities, synergies) is a normal hit scaled from your average weapon hit.
+// Armor reduces both.
+function lightningDmg(e, mult, crit, pct) {
+  let m = 1;
   const cd = sv('conductor');
-  if (cd && (e.stun > 0 || isCold(e))) p *= 1 + cd / 100;
-  if (syn('plasma') === 1 && e.burnT > 0) p *= 2;
-  if (e.boss || e.elite) p *= .25;
-  // lightning softens enemies up but can't finish them: it stops at LFLOOR of their max HP, and your weapons do the rest
-  const room = syn('supercon') === 1 && e.frozen > 0 ? e.hp : e.hp - e.maxHp * LFLOOR;
-  if (room <= 0) return 1;
-  return Math.max(1, Math.min(room, e.hp * p / 100 - Math.max(0, e.armor - E('yellow', 'lpen'))));
+  if (cd && (e.stun > 0 || isCold(e))) m *= 1 + cd / 100;
+  if (syn('plasma') === 1 && e.burnT > 0) m *= 2;
+  if (crit) m *= tot.critMult;
+  if (!pct) return S.avg * mult * m;
+  let p = E('yellow', 'strike') * mult * m;
+  if (e.boss) p *= .25; else if (e.elite) p *= .5;
+  return Math.max(0, Math.min(e.hp - 1, e.hp * p / 100));
 }
 function bolt(e, mult, o) {
   if (!e || e.dead) return;
   o = o || NO;
   if (!o.silent) { FX(o.from ? makeBolt(o.from.x, o.from.y, e.x, e.y) : makeBolt(e.x + rnd(-30, 30), e.y - 260, e.x, e.y)); sfx('zap'); }
-  const d = lightningDmg(e, mult);
-  dmg(e, d, { col: COL.yellow, src: 'lightning', pierce: true });
+  S.rs.strikes++;
+  const crit = (syn('supercon') === 1 && e.frozen > 0) || Math.random() * 100 < tot.crit + E('yellow', 'lcrit');
+  const pct = !!o.pct, d = lightningDmg(e, mult, crit, pct);
+  if (d > 0) dmg(e, d, { col: COL.yellow, src: 'lightning', crit });
+  // Execute: a strike finishes off a weakened non-boss outright, with no on-kill effects
+  const ex = sv('smite');
+  if (ex && !e.dead && !e.boss && e.hp < e.maxHp * ex / 100) { e.noKillFx = true; FX({ k: 'ring', x: e.x, y: e.y, r: e.r + 10, life: .25, col: '#ffffff' }); dmg(e, e.hp + 1, { tr: true, col: '#ffffff', src: 'execute' }); return; }
   if (Math.random() * 100 < E('yellow', 'lstun')) stun(e, .6);
   if (syn('plasma') >= 0 && !e.dead) burn(e, burnFrom(S.avg));
   if (o.silent) return;
   const ov = sv('overload');
-  if (ov) boom(e.x, e.y, sv('overload', 'r'), d * ov / 100, '#ffe066', { small: true, src: 'lightning', quiet: true });
-  if (!o.again && Math.random() * 100 < sv('twice')) later(.14, () => bolt(e, mult, { again: true, noChain: true }));
-  if (!o.noChain) chainFrom(e, mult * .8, (o.jumps || 0) + sv('chain'));
+  if (ov && d > 0) boom(e.x, e.y, sv('overload', 'r'), d * ov / 100, '#ffe066', { small: true, src: 'lightning', quiet: true });
+  if (!o.again && Math.random() * 100 < sv('twice')) later(.14, () => bolt(e, mult, { again: true, noChain: true, pct }));
+  const sc = sv('call');
+  if (sc && !o.called && Math.random() * 100 < sc) later(.12, () => { const tg = pick(inArena()); if (tg) bolt(tg, mult, { called: true, pct }); });
+  if (!o.noChain) { const j = (Math.random() * 100 < E('yellow', 'arcCh') ? E('yellow', 'jumps') : 0) + sv('chain'); if (j > 0) chainFrom(e, mult * .5, j, pct); }
 }
-function chainFrom(e, mult, n) {
+function chainFrom(e, mult, n, pct) {
   const hit = new Set([e]), sc = syn('supercon') >= 0;
   let cur = e;
   if (sc && isCold(e)) n += 2;
@@ -1134,7 +1186,7 @@ function chainFrom(e, mult, n) {
     const nx = nearest(cur.x, cur.y, sc && isCold(cur) ? 220 : 140, hit);
     if (!nx) break;
     hit.add(nx);
-    bolt(nx, mult, { from: cur, noChain: true });
+    bolt(nx, mult, { from: cur, noChain: true, pct });
     cur = nx;
   }
 }
@@ -1147,16 +1199,17 @@ function makeBolt(x1, y1, x2, y2) {
 
 // ---- thorns (Earth only): every enemy attack is punished, even ones you're invulnerable to.
 // flat thorns x thorn multiplier (+ Retribution's share of the hit), minus enemy armor reduced by thorn penetration.
-function thorns(e) {
+function thorns(e, bash) {
   if (e.dead) return;
   const rt = sv('retri');
   if (tot.thornFlat <= 0 && !rt) return;
   let raw = tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100;
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
-  dmg(e, Math.max(1, raw - Math.max(0, e.armor - tot.thornPen)), { col: '#e6c882', pierce: true });
+  const td = dmg(e, Math.max(1, raw - Math.max(0, e.armor - tot.thornPen)), { col: '#e6c882', pierce: true, src: 'thorns' });
+  if (tot.leech) heal(td * tot.leech / 100);
   if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.avg)));
   if (!e.dead && syn('permafrost') >= 0) chill(e, 2);
-  sfx('thorn');
+  sfx('thorn', bash ? .5 : 1);
   FX({ k: 'spikes', x: S.p.x, y: S.p.y, dir: Math.atan2(e.y - S.p.y, e.x - S.p.x), life: .25 });
 }
 function hurt(d, src) {
@@ -1164,7 +1217,7 @@ function hurt(d, src) {
   if (p.inv > 0) return;
   d = Math.max(1, d - tot.armor - ((S.buff && S.buff.armor) || 0));
   if (rel('hide')) d *= .85;
-  p.hp -= d; p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
+  p.hp -= d; S.rs.taken += d; S.rs.low = Math.min(S.rs.low, Math.max(0, p.hp) / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
   sfx('hurt'); hitstop(.045);
   addText(p.x, p.y - 20, d, '#ff6b6b', false);
   emit('hurt', src);
@@ -1177,7 +1230,7 @@ function hurt(d, src) {
 
 // ---- loot: enemies drop gold and XP that you have to pick up
 function dropLoot(e) {
-  const gm = GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
+  const gm = goldRate() * (1 + ((S.buff && S.buff.greed) || 0)) * (rel('rush') ? 1.5 : 1);
   if (e.type === 'goblin') { const g = (20 + S.wave * 8) * gm; for (let i = 0; i < 10; i++) addDrop('gold', g / 10, e.x, e.y); }
   const gold = e.gold * gm, n = gold > 0 ? Math.min(3, Math.max(1, Math.round(gold / 2))) : 0;
   for (let i = 0; i < n; i++) addDrop('gold', gold / n, e.x, e.y);
@@ -1201,7 +1254,7 @@ function updDrops(dt) {
     if (d.mag) { const sp = 440 + (collecting ? 300 : 0); d.x += dx / dist * sp * dt; d.y += dy / dist * sp * dt; }
     if (dist < PR + 7) {
       d.got = true;
-      if (d.k === 'gold') { S.gold += d.v; sfx('coin'); } else { gainXp(d.v * (rel('scholar') ? 1.3 : 1)); sfx('xp'); }
+      if (d.k === 'gold') { S.gold += d.v; S.rs.gold += d.v; sfx('coin'); } else { gainXp(d.v * (rel('scholar') ? 1.3 : 1)); sfx('xp'); }
       if (rel('magnet')) heal(1);
     }
   }
@@ -1216,13 +1269,12 @@ function processDeaths() {
   while (S.dying.length && guard++ < 800) {
     const e = S.dying.shift();
     if (bossTryRevive(e)) continue;
-    S.kills++;
+    S.kills++; if (e.elite) S.rs.elites++; if (e.boss) S.rs.bosses++; if (e.killer === 'execute') S.rs.execs++;
     sfx('pop');
     dropLoot(e);
     FX({ k: 'pop', x: e.x, y: e.y, r: e.r, life: .25, col: e.col });
     puff(e.x, e.y, e.col, e.boss ? 40 : Math.min(9, 3 + e.r / 3 | 0), 150, .45);
-    emit('kill', e);
-    if (e.killer === 'golem') emit('gKill', e);
+    if (!e.noKillFx) { emit('kill', e); if (e.killer === 'golem') emit('gKill', e); }
     if (e.boss && !S.enemies.some(o => o.boss && !o.dead)) { S.eorbs = []; S.haz = []; S.tele = []; }
     if (e.boss) { S.shake = 14; hitstop(.12); FX({ k: 'boom', x: e.x, y: e.y, r: 130, life: .7, col: e.col }); sfx('boom', 1.5); }
   }
@@ -1269,25 +1321,35 @@ function weaponAttack(w) {
 }
 function strike(w, e, dir) {
   let d = weaponDmg(w);
+  const ty = w.type, spreadM = ty === 'axe' ? 1.5 : 1;   // Status spreader: axes apply their element 50% more often
+  if (ty === 'spear' && Math.hypot(e.x - S.p.x, e.y - S.p.y) - e.r > TYPES.spear.range * tot.rangeM * .55) d *= 1.25;   // Reach
+  if (ty === 'sword') d *= 1 + .05 * TYPE_KEYS.filter(k => S.tcounts[k]).length;   // Versatile
   const ti = sv('titan'); if (ti) d += tot.maxHp * ti / 100;
   if (w.evo && w.el === 'green') d += tot.maxHp * .03;
   S.hitN++;
   const tenth = rel('tenth') && S.hitN % 10 === 0;
   const crit = tenth || Math.random() * 100 < tot.crit;
   if (crit) { d *= tot.critMult + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
-  const dealt = dmg(e, d, { col: COL[w.el], crit });
+  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon' });
+  S.rs.wt[ty] = (S.rs.wt[ty] || 0) + dealt; if (crit) S.rs.crits++;
   if (tot.leech) heal(dealt * tot.leech / 100);
+  if (ty === 'dagger' && !e.dead) {
+    // Bleed: every 5th dagger stab on the same enemy deals 30% of the last 5 stabs again, instantly
+    const b = e.dg || (e.dg = { n: 0, sum: 0 }); b.n++; b.sum += dealt;
+    if (b.n >= 5) { const bd = b.sum * .3; b.n = 0; b.sum = 0; dmg(e, bd, { tr: true, col: '#d0213f', src: 'bleed' }); puff(e.x, e.y, '#b0102c', 5, 110, .35); }
+  }
+  if (ty === 'shield' && w.el === 'green' && !e.dead) thorns(e, true);   // Earth shields bash with your thorns
   if (Math.random() * 100 < tot.stun) stun(e, .6);
   knock(e, dir, TYPES[w.type].knock || Math.random() * 100 < tot.knock ? 30 : 3);
   // the element's own small effect
   if (w.el === 'red') {
-    if (w.evo || Math.random() * 100 < E('red', 'ign')) burn(e, burnFrom(d));
+    if (w.evo || Math.random() * 100 < E('red', 'ign') * spreadM) burn(e, burnFrom(dealt));
     if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { ignite: true, small: true });
   } else if (w.el === 'yellow') {
-    if (Math.random() * 100 < E('yellow', 'arcCh')) chainFrom(e, .8, E('yellow', 'jumps') + sv('chain'));
-    if (w.evo && Math.random() < .35) bolt(e, 1);
+    if (Math.random() * 100 < E('yellow', 'strikeCh') * spreadM) bolt(e, 1, { pct: true });
+    if (w.evo && Math.random() < .35) bolt(e, 1, { pct: true });
   } else if (w.el === 'blue') {
-    if (Math.random() * 100 < E('blue', 'chillCh')) chill(e, (w.tier >= 2 ? 2 : 1) + (w.evo ? 1 : 0));
+    if (Math.random() * 100 < E('blue', 'chillCh') * spreadM) chill(e, (w.tier >= 2 ? 2 : 1) + (w.evo ? 1 : 0));
     if (w.evo && Math.random() < .12) freeze(e);
   }
   const hs = S.hk.hit;
@@ -1393,7 +1455,7 @@ function spawnEnemy(type, x, y) {
     id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
     col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
-    atkCd: 0, hitT: 0, burnT: 0, burnDps: 0, burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
+    atkCd: 0, hitT: 0, burnT: 0, bs: [], burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
     summonT: 4, slamT: 5, wob: Math.random() * TAU, dead: false, mode: 'walk', modeT: 0, dashCd: rnd(1, 3), dx: 0, dy: 0, kx: 0, ky: 0, escT: 10,
     dnAcc: 0, dnT: 0, dnCol: '#fff', dnCrit: false,
   };
@@ -1421,9 +1483,17 @@ function updEnemies(dt) {
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
       e.burnT -= dt; e.burnTick -= dt;
-      if (e.burnTick <= 0) { e.burnTick = .5; const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1; dmg(e, e.burnDps * .5 * fx2, { col: '#ff8a4a', pierce: true, dot: true }); }
+      if (e.burnTick <= 0) {
+        const iv = burnLife() / 6; e.burnTick = iv;
+        let d = 0, mx = 0;
+        for (const s of e.bs || []) { const t = Math.min(s.left, s.rate * iv); s.left -= t; d += t; if (s.left > .01) mx = Math.max(mx, s.left / s.rate); }
+        if (e.bs) e.bs = e.bs.filter(s => s.left > .01);
+        e.burnT = e.bs && e.bs.length ? mx + .001 : 0;
+        const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
+        if (d > 0) dmg(e, d * fx2, { col: '#ff8a4a', pierce: true, dot: true, src: 'burn' });
+      }
       if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
-      if (e.burnT <= 0) e.burnDps = 0;
+      if (e.burnT <= 0) e.bs = [];
       if (e.dead) continue;
     }
     const held = e.frozen > 0 || e.stun > 0;
@@ -1472,7 +1542,7 @@ function updEnemies(dt) {
       const dx = b.x - a.x, dy = b.y - a.y, min = a.r + b.r;
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
-      if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, src.burnDps); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
+      if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, Math.max(0, ...(src.bs || []).map(x => x.left))); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
       if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
@@ -1643,7 +1713,7 @@ function updEvents(dt) {
     } else if (ev.k === 'spring') { if (d < ev.r) heal(tot.maxHp * .12 * dt); }
     else if (ev.k === 'cache' && d < 26) {
       ev.life = 0; sfx('buy');
-      const g = (10 + S.wave * 4) * GOLD_RATE * (1 + ((S.buff && S.buff.greed) || 0));
+      const g = (10 + S.wave * 4) * goldRate() * (1 + ((S.buff && S.buff.greed) || 0));
       for (let i = 0; i < 8; i++) addDrop('gold', g / 8, ev.x, ev.y);
       for (let i = 0; i < 4; i++) addDrop('xp', (5 + S.wave) / 4, ev.x, ev.y);
     }
@@ -1712,7 +1782,7 @@ const BOSSES = {
   },
 
   blade: {
-    name: 'The Bladedancer', col: '#43c7b8', hpM: .8, r: 28, spd: 1.8, relics: ['wind', 'clock', 'vamp'],
+    name: 'The Bladedancer', col: '#43c7b8', hpM: .8, r: 28, spd: 1.8, relics: ['combust', 'wind', 'vamp'],
     p2msg: 'moves faster than the eye!', p3msg: 'becomes a blur!',
     p2(e) { e.spd *= 1.15; },
     p3(e) { e.blinkT = 1.2; e.spd *= 1.1; },
@@ -1858,7 +1928,7 @@ function bossStep(e, dt, p, held) {
 function bossTryRevive(e) {
   if (!e.boss || e.mini || e.risen || S.wave <= 20) return false;
   e.dead = false; e.risen = true; e.hp = 1; e.maxHp *= .6; e.reviveT = 2.4;
-  e.burnT = 0; e.chill = 0; e.frozen = 0; e.stun = 0;
+  e.burnT = 0; e.bs = []; e.chill = 0; e.frozen = 0; e.stun = 0;
   S.silence = 2.4;
   S.tele = []; S.eorbs = [];
   banner('...');
@@ -2026,7 +2096,7 @@ function updFx(dt) {
 
 function step(dt) {
   if (S.hitstop > 0) { S.hitstop -= dt; updFx(dt * .2); return; }   // freeze-frame on heavy impacts
-  S.time += dt;
+  S.time += dt; if (S.phase === 'fight') S.rs.time += dt;
   S.avg = avgDmg();
   grid.build(S.enemies);
   updPlayer(dt);
@@ -2448,7 +2518,7 @@ function drawEnemy(c, e, T) {
   if (e.type === 'altar') { c.strokeStyle = 'rgba(200,100,255,.3)'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, r + 14 + Math.sin(T * 3) * 4, 0, TAU); c.stroke(); }
   if (e.type === 'goblin') { c.fillStyle = '#ffe9a8'; c.font = '700 11px "Chakra Petch"'; c.textAlign = 'center'; c.fillText(Math.max(0, e.escT).toFixed(0), 0, -r - 10); }
   if (e.elite) { c.strokeStyle = `rgba(242,193,78,${.65 + Math.sin(T * 6) * .3})`; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, r + 5, 0, TAU); c.stroke(); c.fillStyle = '#f2c14e'; c.beginPath(); c.moveTo(-6, -r - 7); c.lineTo(-6, -r - 14); c.lineTo(-3, -r - 10); c.lineTo(0, -r - 15); c.lineTo(3, -r - 10); c.lineTo(6, -r - 14); c.lineTo(6, -r - 7); c.closePath(); c.fill(); }
-  if (e.burnT > 0) { c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 2; c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke(); }
+  if (e.burnT > 0) { c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 1.5 + Math.min(4, (e.bs ? e.bs.length : 1) * .5); c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke(); }
   if (e.chill > 0 && e.frozen <= 0) { c.strokeStyle = 'rgba(120,210,255,.95)'; c.lineWidth = 2; c.setLineDash([3, 3]); c.beginPath(); c.arc(0, 0, r + 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, e.chill / 4)); c.stroke(); c.setLineDash([]); }
   if (e.frozen > 0) { c.fillStyle = 'rgba(200,238,255,.3)'; c.strokeStyle = '#eefaff'; c.lineWidth = 1.5; c.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .5; c.lineTo(Math.cos(a) * (r + 6), Math.sin(a) * (r + 6)); } c.closePath(); c.fill(); c.stroke(); }
   if (e.stun > 0) { c.fillStyle = '#ffd23f'; for (let i = 0; i < 3; i++) { const a = T * 6 + i * TAU / 3; c.fillRect(Math.cos(a) * r * .9 - 1.5, -r - 7 + Math.sin(a) * 3, 3, 3); } }
@@ -2621,7 +2691,7 @@ const coin = n => `<span class="gc">●</span> ${n}`;
 function elemLine(w) {
   const g = (c, k) => S ? E(c, k) : EDEF[c][k].base, t = w.tier;
   if (w.el === 'red') return w.evo ? 'Always ignites · 25% chance to explode' : `${fmt(g('red', 'ign'))}% chance to ignite`;
-  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'arcCh'))}% to arc for ${fmt(g('yellow', 'strike') * .8)}% of current HP${w.evo ? ' · 35% to call a strike' : ''}`;
+  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'strikeCh'))}% to call a strike for ${fmt(g('yellow', 'strike'))}% of current HP${w.evo ? ' · 35% extra strike chance' : ''}`;
   if (w.el === 'blue') return `${fmt(g('blue', 'chillCh'))}% chance to chill (+${(t >= 2 ? 2 : 1) + (w.evo ? 1 : 0)}); 4 freezes${w.evo ? ' · 12% instant freeze' : ''}`;
   return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
@@ -2629,7 +2699,7 @@ function weaponCard(w, act, foot) {
   const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
   return `<button class="card ${act ? '' : 'off'}" style="--c:${COL[w.el]}" ${act ? `data-act="${act}"` : 'disabled'}>
     <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</b></div>
-    <div class="ln">${d} dmg · ${T.how}</div><div class="ln">${elemLine(w)}</div>
+    <div class="ln"><b style="color:var(--gold)">${T.role}</b> · ${d} dmg · ${T.how}</div><div class="ln hint">${T.trait}</div><div class="ln">${elemLine(w)}</div>
     ${w.afx.map(k => `<div class="ln af">◆ ${statText(k, afxVal(k, w))}</div>`).join('')}${foot || ''}</button>`;
 }
 function elemSetsHtml(sets, counts) {
@@ -2787,7 +2857,43 @@ function renderDead() {
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--hp)">Fallen</h2>`, sub: `The circle broke on wave ${S.wave}${S.wave > 20 ? ', deep in the endless waves' : ''}`,
     body: `<p style="margin:0 0 8px">Level ${S.level} · ${S.kills} kills · best wave ${bestWave()}</p>
       <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${w.evo ? '★' : ROMAN[w.tier]}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
-    foot: `<button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
+    foot: `<button class="btn wide" data-act="runstats" style="margin-bottom:8px">Run stats</button><button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
+}
+const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
+const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', explosion: '#ff5a3c', thorns: '#e6c882', bleed: '#d0213f', execute: '#ffffff', golem: '#5ee08a', shatter: '#4fc3ff', steam: '#c9e8ff', ability: '#9b8cff' };
+const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
+function barList(entries, total, nameOf, colOf) {
+  return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
+    return `<div class="bar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
+}
+function renderRunStats() {
+  const r = S.rs, tab = UI.rtab || 'high';
+  const mm = Math.floor(r.time / 60), ss = Math.floor(r.time % 60);
+  const tile = (l, v, sub) => `<div class="tile"><span>${l}</span><b>${v}</b>${sub ? `<em>${sub}</em>` : ''}</div>`;
+  let body;
+  if (tab === 'high') {
+    body = `<div class="tiles">
+      ${tile('Wave reached', S.wave, S.wave > 20 ? 'endless' : '')}${tile('Time in combat', `${mm}:${String(ss).padStart(2, '0')}`)}
+      ${tile('Damage dealt', big(r.dealt))}${tile('Biggest hit', big(r.big), SRC_NAME[r.bigSrc] || '')}
+      ${tile('Kills', S.kills, `${r.elites} elite${r.elites === 1 ? '' : 's'} · ${r.bosses} boss${r.bosses === 1 ? '' : 'es'}`)}${tile('Crits', big(r.crits))}
+      ${tile('Damage taken', big(r.taken))}${tile('Healed', big(r.healed))}
+      ${tile('Closest call', Math.round(r.low * 100) + '% HP')}${tile('Gold collected', big(r.gold), `${r.bought} bought · ${r.rerolls} rerolls`)}
+      ${r.strikes ? tile('Lightning strikes', big(r.strikes), r.execs ? r.execs + ' executes' : '') : ''}${r.stacks > 1 ? tile('Most burn stacks', r.stacks, 'on one enemy') : ''}
+    </div>
+    <h3>Damage by source</h3>${barList(Object.entries(r.src), r.dealt, k => SRC_NAME[k] || k, k => SRC_COL[k] || '#aaa')}
+    ${Object.keys(r.wt).length ? `<h3>Weapon hits by type</h3>${barList(Object.entries(r.wt), Object.values(r.wt).reduce((a, b) => a + b, 0), k => TYPES[k].n, () => COL.gold)}` : ''}`;
+  } else {
+    const ab = ORDER.flatMap(c => S.runSets[c].map((a, i) => S.on[a.id] === i ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b> <span class="hint">${(S.counts[c] || 0)} ${ELEM[c]}</span><br>${a.d(a, i)}</div>` : '')).join('');
+    const sy = S.synId ? SYN[S.synId] : null;
+    const fought = []; for (let w = 10; w <= S.wave; w += 10) fought.push(`<span class="chip" style="--c:${BOSSES[bossKeyFor(w)].col}">W${w} ${BOSSES[bossKeyFor(w)].name}</span>`);
+    body = countChips() + `<h3>Weapons</h3><div class="grid3">${S.weapons.map(w => weaponCard(w, null)).join('')}</div>
+      ${ab ? `<h3>Active abilities</h3>${ab}` : ''}
+      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>` : ''}
+      ${fought.length ? `<h3>Bosses faced</h3><div class="chips">${fought.join('')}</div>` : ''}
+      <h3>Final stats</h3>${statsHtml()}<h3>Weapon type bonuses</h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
+  }
+  showScreen(sheet({ title: '<h2>Run stats</h2>', sub: `Wave ${S.wave} · level ${S.level}`, tabs: [['high', 'Highlights'], ['build', 'Build']], tab, tabAct: 'runstats', body,
+    foot: `<button class="btn wide" data-act="deadback">Back</button>` }), 'runstats:' + tab);
 }
 
 // ---- HUD
@@ -2821,6 +2927,8 @@ function act(a, arg) {
   if (a === 'restart' || a === 'quit') { paused = false; S = null; showHud(false); UI.stab = 'play'; renderStart(); return; }
   if (!S) return;
   if (a === 'ptab') { UI.ptab = arg; renderPause(); return; }
+  if (a === 'runstats') { sfx('click'); UI.rtab = arg || 'high'; renderRunStats(); return; }
+  if (a === 'deadback') { sfx('click'); renderDead(); return; }
   if (a === 'resume') { togglePause(); return; }
   if (a === 'tab') { UI.tab = arg; renderShop(); return; }
   if (a === 'perk') { choosePerk(+arg); return; }
@@ -2830,11 +2938,11 @@ function act(a, arg) {
   if (S.phase !== 'shop') return;
   const g = S.gold;
   if (a === 'next') { startWave(); return; }
-  if (a === 'reroll') { if (g < S.rerollCost) return; sfx('click'); S.gold -= S.rerollCost; S.rerolls++; S.rerollCost = rerollPrice(); S.offers = rollOffers(); S.shopLocked = false; }
+  if (a === 'reroll') { if (g < S.rerollCost) return; sfx('click'); S.gold -= S.rerollCost; S.rerolls++; S.rs.rerolls++; S.rerollCost = rerollPrice(); S.offers = rollOffers(); S.shopLocked = false; }
   else if (a === 'lock') { S.shopLocked = !S.shopLocked; sfx('click'); }
   else if (a === 'buylvr') { const pr = lvRerollPrice(); if (g < pr) return; S.gold -= pr; S.lvRerollBuys++; sfx('buy'); }
   else if (a === 'xp') { const amt = Math.floor(Math.floor(g) * +arg); if (amt < 2) return; S.gold -= amt; gainXp(amt * GOLD_TO_XP); sfx('level'); if (S.pendingLv > 0) { nextMenu(); return; } }
-  else if (a === 'buy') { const o = S.offers[+arg]; if (!o || S.weapons.length >= 6 || g < priceOf(o.tier)) return; sfx('buy'); S.gold -= priceOf(o.tier); S.offers[+arg] = null; addWeapon(o); }
+  else if (a === 'buy') { const o = S.offers[+arg]; if (!o || S.weapons.length >= 6 || g < priceOf(o.tier)) return; sfx('buy'); S.gold -= priceOf(o.tier); S.offers[+arg] = null; S.rs.bought++; addWeapon(o); }
   else {
     const w = S.weapons.find(w => w.id === +arg); if (!w) return;
     if (a === 'up') { if (w.tier >= 3 || g < upCost(w.tier)) return; sfx('buy'); S.gold -= upCost(w.tier); w.tier++; recalc(); }
