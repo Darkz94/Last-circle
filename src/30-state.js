@@ -82,7 +82,7 @@ function recalc() {
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
-  t.maxHp += lv; t.dmgPct += .5 * lv; t.atkSpd += .25 * lv; t.armor += .15 * lv; t.regen += .03 * lv;
+  t.maxHp += 3 * lv; t.dmgPct += 1.5 * lv; t.atkSpd += .75 * lv; t.armor += .4 * lv; t.regen += .08 * lv;
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);

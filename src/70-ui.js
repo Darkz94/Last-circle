@@ -121,7 +121,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. Every level also gives +1 max HP, +0.5% damage, +0.25% attack speed, +0.15 armor and +0.03 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.4 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
