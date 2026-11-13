@@ -1,7 +1,7 @@
 // ===== weapons (melee, auto-attacking) and golems
 const wName = w => `${w.evo ? EVO[w.el] : ADJ[w.el]} ${TYPES[w.type].n}`;
 function weaponDmg(w) {
-  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : 1) + tot.flat) * (1 + tot.dmgPct / 100);
+  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) + tot.flat) * (1 + tot.dmgPct / 100);
   if (w.el === 'yellow') d *= YEL_DMG;
   if (S.buff && S.buff.dmg) d *= 1 + S.buff.dmg;
   return d;

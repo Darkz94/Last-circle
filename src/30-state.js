@@ -81,6 +81,8 @@ function recalc() {
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
+  const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
+  t.maxHp += lv; t.dmgPct += .5 * lv; t.atkSpd += .25 * lv; t.armor += .15 * lv; t.regen += .03 * lv;
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);
@@ -99,11 +101,14 @@ function recalc() {
 const priceOf = t => Math.round([18, 42, 85, 160][t] * (1 + (S.wave - 1) * .06));
 const upCost = t => Math.round(priceOf(t + 1) * 1.05);
 const evoCost = () => Math.round(priceOf(3) * 1.6);
-const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : 1));
+const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : w.fused ? 1.7 : 1));
 let RRF = [5, 1.5, 2];   // reroll: (base + wave*step) * growth^rerollsThisShop
 const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((RRF[0] + S.wave * RRF[1]) * Math.pow(RRF[2], S.rerolls));
 const lvRerollPrice = () => Math.round(60 * Math.pow(2.5, S.lvRerollBuys || 0) * (1 + S.wave * .04));
 const canEvolve = w => w.tier === 3 && !w.evo && (S.counts[w.el] || 0) >= 6;
+// Fusion: mixed builds can't evolve, so a tier IV weapon of an element you own fewer than 6 of can fuse instead
+const canFuse = w => w.tier === 3 && !w.evo && !w.fused && (S.counts[w.el] || 0) < 6;
+const tierMark = w => w.evo ? '★' : w.fused ? 'IV◆' : ROMAN[w.tier];
 function rollTier() {
   const w = S.wave, r = Math.random();
   if (w >= 11 && r < .12 + Math.min(.3, Math.max(0, w - 20) * .03)) return 3;
@@ -121,7 +126,7 @@ function unpackCard(c) {
   const el = c.el && EDEF[c.el.c] && EDEF[c.el.c][c.el.k] ? { c: c.el.c, d: EDEF[c.el.c][c.el.k] } : null;
   return { el, pr, pv: c.pv, rare: c.rare, locked: c.locked };
 }
-const packW = w => w && ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx, evo: !!w.evo });
+const packW = w => w && ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx, evo: !!w.evo, fused: !!w.fused });
 function saveRun() {
   if (!S || S.phase === 'dead') return;
   LS.set(SAVE_KEY, {

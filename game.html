@@ -147,11 +147,11 @@ h3 span{text-transform:none;letter-spacing:.02em}
 .tile span{font-size:11px;color:#9a978e}
 .tile b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
 .tile em{font-style:normal;font-size:11px;color:#9a978e}
-.bar{margin-bottom:7px}
-.bar .bl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
-.bar .bl b{color:var(--text);font-variant-numeric:tabular-nums}
-.bar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
-.bar .bt i{display:block;height:100%;border-radius:4px}
+.sbar{margin-bottom:8px}
+.sbar .bl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;margin-bottom:3px}
+.sbar .bl b{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sbar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
+.sbar .bt i{display:block;height:100%;border-radius:4px}
 @media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
 
 </style>
@@ -172,7 +172,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 14;
+const GAME_VERSION = 15;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -435,7 +435,7 @@ const STAT = {
 const STAT_KEYS = Object.keys(STAT);
 const AFX_SCALE = [1, 1.5, 2.2, 3.6];
 const statText = (k, v) => `+${fmt(v)}${STAT[k].u} ${STAT[k].t}`;
-function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
+function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : w.fused ? 1.15 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
 
 // ---- level-up bonus stats
 const PRIM = [
@@ -939,6 +939,8 @@ function recalc() {
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
+  const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
+  t.maxHp += lv; t.dmgPct += .5 * lv; t.atkSpd += .25 * lv; t.armor += .15 * lv; t.regen += .03 * lv;
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);
@@ -957,11 +959,14 @@ function recalc() {
 const priceOf = t => Math.round([18, 42, 85, 160][t] * (1 + (S.wave - 1) * .06));
 const upCost = t => Math.round(priceOf(t + 1) * 1.05);
 const evoCost = () => Math.round(priceOf(3) * 1.6);
-const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : 1));
+const sellVal = w => Math.round(priceOf(w.tier) * .4 * (w.evo ? 2 : w.fused ? 1.7 : 1));
 let RRF = [5, 1.5, 2];   // reroll: (base + wave*step) * growth^rerollsThisShop
 const rerollPrice = () => rel('rush') && S.rerolls === 0 ? 0 : Math.round((RRF[0] + S.wave * RRF[1]) * Math.pow(RRF[2], S.rerolls));
 const lvRerollPrice = () => Math.round(60 * Math.pow(2.5, S.lvRerollBuys || 0) * (1 + S.wave * .04));
 const canEvolve = w => w.tier === 3 && !w.evo && (S.counts[w.el] || 0) >= 6;
+// Fusion: mixed builds can't evolve, so a tier IV weapon of an element you own fewer than 6 of can fuse instead
+const canFuse = w => w.tier === 3 && !w.evo && !w.fused && (S.counts[w.el] || 0) < 6;
+const tierMark = w => w.evo ? '★' : w.fused ? 'IV◆' : ROMAN[w.tier];
 function rollTier() {
   const w = S.wave, r = Math.random();
   if (w >= 11 && r < .12 + Math.min(.3, Math.max(0, w - 20) * .03)) return 3;
@@ -979,7 +984,7 @@ function unpackCard(c) {
   const el = c.el && EDEF[c.el.c] && EDEF[c.el.c][c.el.k] ? { c: c.el.c, d: EDEF[c.el.c][c.el.k] } : null;
   return { el, pr, pv: c.pv, rare: c.rare, locked: c.locked };
 }
-const packW = w => w && ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx, evo: !!w.evo });
+const packW = w => w && ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx, evo: !!w.evo, fused: !!w.fused });
 function saveRun() {
   if (!S || S.phase === 'dead') return;
   LS.set(SAVE_KEY, {
@@ -1216,7 +1221,7 @@ function hurt(d, src) {
   if (p.inv > 0) return;
   d = Math.max(1, d * armRed(tot.armor + ((S.buff && S.buff.armor) || 0)));
   if (rel('hide')) d *= .85;
-  p.hp -= d; S.rs.taken += d; S.rs.low = Math.min(S.rs.low, Math.max(0, p.hp) / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
+  p.hp -= d; S.rs.taken += d; if (p.hp > 0) S.rs.low = Math.min(S.rs.low, p.hp / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
   sfx('hurt'); hitstop(.045);
   addText(p.x, p.y - 20, d, '#ff6b6b', false);
   emit('hurt', src);
@@ -1283,7 +1288,7 @@ function processDeaths() {
 // ===== weapons (melee, auto-attacking) and golems
 const wName = w => `${w.evo ? EVO[w.el] : ADJ[w.el]} ${TYPES[w.type].n}`;
 function weaponDmg(w) {
-  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : 1) + tot.flat) * (1 + tot.dmgPct / 100);
+  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) + tot.flat) * (1 + tot.dmgPct / 100);
   if (w.el === 'yellow') d *= YEL_DMG;
   if (S.buff && S.buff.dmg) d *= 1 + S.buff.dmg;
   return d;
@@ -2696,9 +2701,9 @@ function elemLine(w) {
   return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
 function weaponCard(w, act, foot) {
-  const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
+  const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
   return `<button class="card ${act ? '' : 'off'}" style="--c:${COL[w.el]}" ${act ? `data-act="${act}"` : 'disabled'}>
-    <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</b></div>
+    <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${tierMark(w)}</b></div>
     <div class="ln"><b style="color:var(--gold)">${T.role}</b> · ${d} dmg · ${T.how}</div><div class="ln hint">${T.trait}</div><div class="ln">${elemLine(w)}</div>
     ${w.afx.map(k => `<div class="ln af">◆ ${statText(k, afxVal(k, w))}</div>`).join('')}${foot || ''}</button>`;
 }
@@ -2790,7 +2795,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. Every level also gives +1 max HP, +0.5% damage, +0.25% attack speed, +0.15 armor and +0.03 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -2824,11 +2829,12 @@ function renderShop() {
     body = S.weapons.map(w => {
       const uc = upCost(w.tier), ec = evoCost();
       const up = w.evo ? `<span class="hint">EVOLVED</span>` : w.tier < 3 ? `<button class="btn sm" data-act="up:${w.id}" ${g < uc ? 'disabled' : ''}>Upgrade ${coin(uc)}</button>`
-        : canEvolve(w) ? `<button class="btn sm ok" data-act="evo:${w.id}" ${g < ec ? 'disabled' : ''}>Evolve ${ec}</button>` : `<span class="hint">MAX</span>`;
-      return `<div class="wrow" style="--c:${COL[w.el]}">${svg(w.type, COL[w.el])}<span class="n">${wName(w)} <span style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</span><small>${w.afx.map(k => statText(k, afxVal(k, w))).join(' · ')}</small></span>
+        : canEvolve(w) ? `<button class="btn sm ok" data-act="evo:${w.id}" ${g < ec ? 'disabled' : ''}>Evolve ${ec}</button>`
+        : canFuse(w) ? `<button class="btn sm ok" data-act="fuse:${w.id}" ${g < ec ? 'disabled' : ''}>Fuse ${ec}</button>` : `<span class="hint">${w.fused ? 'FUSED' : 'MAX'}</span>`;
+      return `<div class="wrow" style="--c:${COL[w.el]}">${svg(w.type, COL[w.el])}<span class="n">${wName(w)} <span style="color:${COL[w.el]}">${tierMark(w)}</span><small>${w.afx.map(k => statText(k, afxVal(k, w))).join(' · ')}</small></span>
         <span class="acts">${up}<button class="btn sm" data-act="sell:${w.id}" ${S.weapons.length <= 1 ? 'disabled' : ''}>Sell +${sellVal(w)}</button></span></div>`;
     }).join('') + Array(Math.max(0, 6 - S.weapons.length)).fill('<div class="wrow empty">Empty slot</div>').join('')
-      + `<p class="hint">Upgrading a weapon also strengthens its own two stats. With all 6 weapons of one element, a tier IV weapon of that element can <b style="color:var(--green)">evolve</b> into a legendary.</p>`;
+      + `<p class="hint">Upgrading a weapon also strengthens its own two stats. With all 6 weapons of one element, a tier IV weapon of that element can <b style="color:var(--green)">evolve</b> into a legendary. Mixing elements? A tier IV weapon of an element you own fewer than 6 of can <b style="color:var(--green)">fuse</b> instead: +35% damage and +15% to its stats.</p>`;
   } else if (UI.tab === 'bonus') {
     body = `<h3>Elements <span>· own 2 / 4 / 6 of a colour</span></h3>${elemSetsHtml(S.runSets, S.counts)}<h3>Synergies <span>· 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(S.synRoll, S.counts)}<h3>Weapon types <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
   } else body = statsHtml();
@@ -2856,7 +2862,7 @@ function renderPause() {
 function renderDead() {
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--hp)">Fallen</h2>`, sub: `The circle broke on wave ${S.wave}${S.wave > 20 ? ', deep in the endless waves' : ''}`,
     body: `<p style="margin:0 0 8px">Level ${S.level} · ${S.kills} kills · best wave ${bestWave()}</p>
-      <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${w.evo ? '★' : ROMAN[w.tier]}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
+      <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${tierMark(w)}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
     foot: `<button class="btn wide" data-act="runstats" style="margin-bottom:8px">Run stats</button><button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
 }
 const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
@@ -2864,7 +2870,7 @@ const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', expl
 const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
 function barList(entries, total, nameOf, colOf) {
   return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
-    return `<div class="bar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
+    return `<div class="sbar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
 }
 function renderRunStats() {
   const r = S.rs, tab = UI.rtab || 'high';
@@ -2900,7 +2906,7 @@ function renderRunStats() {
 function renderSlots() {
   $('slots').innerHTML = Array.from({ length: 6 }, (_, i) => {
     const w = S && S.weapons[i];
-    return w ? `<div class="slot ${w.evo ? 'evo' : ''}" style="border-color:${COL[w.el]}88;--c:${COL[w.el]}55">${svg(w.type, COL[w.el])}<b>${w.evo ? '★' : ROMAN[w.tier]}</b></div>` : `<div class="slot"></div>`;
+    return w ? `<div class="slot ${w.evo ? 'evo' : ''}" style="border-color:${COL[w.el]}88;--c:${COL[w.el]}55">${svg(w.type, COL[w.el])}<b>${tierMark(w)}</b></div>` : `<div class="slot"></div>`;
   }).join('');
 }
 const hudCache = {};
@@ -2946,7 +2952,8 @@ function act(a, arg) {
   else {
     const w = S.weapons.find(w => w.id === +arg); if (!w) return;
     if (a === 'up') { if (w.tier >= 3 || g < upCost(w.tier)) return; sfx('buy'); S.gold -= upCost(w.tier); w.tier++; recalc(); }
-    else if (a === 'evo') { if (!canEvolve(w) || g < evoCost()) return; S.gold -= evoCost(); w.evo = true; sfx('evolve'); recalc(); }
+    else if (a === 'evo') { if (!canEvolve(w) || g < evoCost()) return; S.gold -= evoCost(); w.evo = true; w.fused = false; sfx('evolve'); recalc(); }
+    else if (a === 'fuse') { if (!canFuse(w) || g < evoCost()) return; S.gold -= evoCost(); w.fused = true; sfx('evolve'); recalc(); }
     else if (a === 'sell') { if (S.weapons.length <= 1) return; sfx('coin'); S.gold += sellVal(w); S.weapons = S.weapons.filter(x => x !== w); recalc(); }
     else return;
   }
@@ -3028,7 +3035,7 @@ function loop(now) {
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
     rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, choosePerk, takeRelic,
-    SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
+    SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 resize();
 requestAnimationFrame(loop);

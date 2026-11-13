@@ -193,7 +193,7 @@ function hurt(d, src) {
   if (p.inv > 0) return;
   d = Math.max(1, d * armRed(tot.armor + ((S.buff && S.buff.armor) || 0)));
   if (rel('hide')) d *= .85;
-  p.hp -= d; S.rs.taken += d; S.rs.low = Math.min(S.rs.low, Math.max(0, p.hp) / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
+  p.hp -= d; S.rs.taken += d; if (p.hp > 0) S.rs.low = Math.min(S.rs.low, p.hp / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
   sfx('hurt'); hitstop(.045);
   addText(p.x, p.y - 20, d, '#ff6b6b', false);
   emit('hurt', src);

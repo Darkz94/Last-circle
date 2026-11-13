@@ -128,9 +128,9 @@ h3 span{text-transform:none;letter-spacing:.02em}
 .tile span{font-size:11px;color:#9a978e}
 .tile b{font-size:19px;color:var(--text);font-variant-numeric:tabular-nums}
 .tile em{font-style:normal;font-size:11px;color:#9a978e}
-.bar{margin-bottom:7px}
-.bar .bl{display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px}
-.bar .bl b{color:var(--text);font-variant-numeric:tabular-nums}
-.bar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
-.bar .bt i{display:block;height:100%;border-radius:4px}
+.sbar{margin-bottom:8px}
+.sbar .bl{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;margin-bottom:3px}
+.sbar .bl b{color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap}
+.sbar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
+.sbar .bt i{display:block;height:100%;border-radius:4px}
 @media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}

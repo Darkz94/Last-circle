@@ -41,7 +41,7 @@ const STAT = {
 const STAT_KEYS = Object.keys(STAT);
 const AFX_SCALE = [1, 1.5, 2.2, 3.6];
 const statText = (k, v) => `+${fmt(v)}${STAT[k].u} ${STAT[k].t}`;
-function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
+function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : w.fused ? 1.15 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
 
 // ---- level-up bonus stats
 const PRIM = [

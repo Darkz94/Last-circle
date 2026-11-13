@@ -27,9 +27,9 @@ function elemLine(w) {
   return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
 function weaponCard(w, act, foot) {
-  const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
+  const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
   return `<button class="card ${act ? '' : 'off'}" style="--c:${COL[w.el]}" ${act ? `data-act="${act}"` : 'disabled'}>
-    <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</b></div>
+    <div class="t"><span class="ic">${svg(w.type, COL[w.el])}<span>${wName(w)}</span></span><b style="color:${COL[w.el]}">${tierMark(w)}</b></div>
     <div class="ln"><b style="color:var(--gold)">${T.role}</b> · ${d} dmg · ${T.how}</div><div class="ln hint">${T.trait}</div><div class="ln">${elemLine(w)}</div>
     ${w.afx.map(k => `<div class="ln af">◆ ${statText(k, afxVal(k, w))}</div>`).join('')}${foot || ''}</button>`;
 }
@@ -121,7 +121,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. Every level also gives +1 max HP, +0.5% damage, +0.25% attack speed, +0.15 armor and +0.03 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -155,11 +155,12 @@ function renderShop() {
     body = S.weapons.map(w => {
       const uc = upCost(w.tier), ec = evoCost();
       const up = w.evo ? `<span class="hint">EVOLVED</span>` : w.tier < 3 ? `<button class="btn sm" data-act="up:${w.id}" ${g < uc ? 'disabled' : ''}>Upgrade ${coin(uc)}</button>`
-        : canEvolve(w) ? `<button class="btn sm ok" data-act="evo:${w.id}" ${g < ec ? 'disabled' : ''}>Evolve ${ec}</button>` : `<span class="hint">MAX</span>`;
-      return `<div class="wrow" style="--c:${COL[w.el]}">${svg(w.type, COL[w.el])}<span class="n">${wName(w)} <span style="color:${COL[w.el]}">${w.evo ? '★' : ROMAN[w.tier]}</span><small>${w.afx.map(k => statText(k, afxVal(k, w))).join(' · ')}</small></span>
+        : canEvolve(w) ? `<button class="btn sm ok" data-act="evo:${w.id}" ${g < ec ? 'disabled' : ''}>Evolve ${ec}</button>`
+        : canFuse(w) ? `<button class="btn sm ok" data-act="fuse:${w.id}" ${g < ec ? 'disabled' : ''}>Fuse ${ec}</button>` : `<span class="hint">${w.fused ? 'FUSED' : 'MAX'}</span>`;
+      return `<div class="wrow" style="--c:${COL[w.el]}">${svg(w.type, COL[w.el])}<span class="n">${wName(w)} <span style="color:${COL[w.el]}">${tierMark(w)}</span><small>${w.afx.map(k => statText(k, afxVal(k, w))).join(' · ')}</small></span>
         <span class="acts">${up}<button class="btn sm" data-act="sell:${w.id}" ${S.weapons.length <= 1 ? 'disabled' : ''}>Sell +${sellVal(w)}</button></span></div>`;
     }).join('') + Array(Math.max(0, 6 - S.weapons.length)).fill('<div class="wrow empty">Empty slot</div>').join('')
-      + `<p class="hint">Upgrading a weapon also strengthens its own two stats. With all 6 weapons of one element, a tier IV weapon of that element can <b style="color:var(--green)">evolve</b> into a legendary.</p>`;
+      + `<p class="hint">Upgrading a weapon also strengthens its own two stats. With all 6 weapons of one element, a tier IV weapon of that element can <b style="color:var(--green)">evolve</b> into a legendary. Mixing elements? A tier IV weapon of an element you own fewer than 6 of can <b style="color:var(--green)">fuse</b> instead: +35% damage and +15% to its stats.</p>`;
   } else if (UI.tab === 'bonus') {
     body = `<h3>Elements <span>· own 2 / 4 / 6 of a colour</span></h3>${elemSetsHtml(S.runSets, S.counts)}<h3>Synergies <span>· 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(S.synRoll, S.counts)}<h3>Weapon types <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
   } else body = statsHtml();
@@ -187,7 +188,7 @@ function renderPause() {
 function renderDead() {
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--hp)">Fallen</h2>`, sub: `The circle broke on wave ${S.wave}${S.wave > 20 ? ', deep in the endless waves' : ''}`,
     body: `<p style="margin:0 0 8px">Level ${S.level} · ${S.kills} kills · best wave ${bestWave()}</p>
-      <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${w.evo ? '★' : ROMAN[w.tier]}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
+      <div class="chips">${S.weapons.map(w => `<span class="chip" style="--c:${COL[w.el]}">${wName(w)} ${tierMark(w)}</span>`).join('')}${S.relics.map(id => `<span class="chip" style="--c:${RELIC[id].col}">${RELIC[id].name}</span>`).join('')}</div>`,
     foot: `<button class="btn wide" data-act="runstats" style="margin-bottom:8px">Run stats</button><button class="btn go wide" data-act="restart">New run</button>` }), 'dead');
 }
 const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
@@ -195,7 +196,7 @@ const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', expl
 const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
 function barList(entries, total, nameOf, colOf) {
   return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
-    return `<div class="bar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
+    return `<div class="sbar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');
 }
 function renderRunStats() {
   const r = S.rs, tab = UI.rtab || 'high';
@@ -231,7 +232,7 @@ function renderRunStats() {
 function renderSlots() {
   $('slots').innerHTML = Array.from({ length: 6 }, (_, i) => {
     const w = S && S.weapons[i];
-    return w ? `<div class="slot ${w.evo ? 'evo' : ''}" style="border-color:${COL[w.el]}88;--c:${COL[w.el]}55">${svg(w.type, COL[w.el])}<b>${w.evo ? '★' : ROMAN[w.tier]}</b></div>` : `<div class="slot"></div>`;
+    return w ? `<div class="slot ${w.evo ? 'evo' : ''}" style="border-color:${COL[w.el]}88;--c:${COL[w.el]}55">${svg(w.type, COL[w.el])}<b>${tierMark(w)}</b></div>` : `<div class="slot"></div>`;
   }).join('');
 }
 const hudCache = {};
@@ -277,7 +278,8 @@ function act(a, arg) {
   else {
     const w = S.weapons.find(w => w.id === +arg); if (!w) return;
     if (a === 'up') { if (w.tier >= 3 || g < upCost(w.tier)) return; sfx('buy'); S.gold -= upCost(w.tier); w.tier++; recalc(); }
-    else if (a === 'evo') { if (!canEvolve(w) || g < evoCost()) return; S.gold -= evoCost(); w.evo = true; sfx('evolve'); recalc(); }
+    else if (a === 'evo') { if (!canEvolve(w) || g < evoCost()) return; S.gold -= evoCost(); w.evo = true; w.fused = false; sfx('evolve'); recalc(); }
+    else if (a === 'fuse') { if (!canFuse(w) || g < evoCost()) return; S.gold -= evoCost(); w.fused = true; sfx('evolve'); recalc(); }
     else if (a === 'sell') { if (S.weapons.length <= 1) return; sfx('coin'); S.gold += sellVal(w); S.weapons = S.weapons.filter(x => x !== w); recalc(); }
     else return;
   }
