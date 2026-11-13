@@ -64,7 +64,7 @@ const F = SYN;
 F.overheat.cd = .15;   // used as a limiter, see boom()
 F.magma.frame = (a, s, dt) => {
   S.magmaT = (S.magmaT || 0) - dt; if (S.magmaT > 0) return; S.magmaT = .45;
-  for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) S.zones.push({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.avg * .35 });
+  for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) S.zones.push({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.ab * .35 });
 };
 F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { ignite: true, small: true, pierce: true }); };
 F.staticice.frame = (a, s, dt) => {
@@ -93,7 +93,7 @@ F.cataclysm.fire = () => {
   sfx('boss'); S.shake = Math.min(6, S.shake + 4); hitstop(.05);
   FX({ k: 'boom', x: 0, y: 0, r: R, life: .7, col: '#ffffff' });
   const list = inArena();
-  for (const e of list) { dmg(e, S.avg * 1.5, { col: '#ffffff' }); burn(e, burnFrom(S.avg * 1.5)); chill(e, 2); }
+  for (const e of list) { dmg(e, S.ab * 1.5, { col: '#ffffff' }); burn(e, burnFrom(S.ab * 1.5)); chill(e, 2); }
   shuffle(list).slice(0, 12).forEach((e, i) => later(i * .05, () => bolt(e, 1, { noChain: true })));
 };
 F.volcano.cd = 8;
@@ -112,7 +112,7 @@ F.volcano.frame = (a, s, dt) => {
     if (!t) continue;
     const x = t.x, y = t.y;
     FX({ k: 'warn', x, y, r: 34, life: .3, col: FIRE });
-    later(.3, () => { boom(x, y, 34, S.avg * .8 + tot.maxHp * .05, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 40); if (e2) bolt(e2, .4, { silent: true }); });
+    later(.3, () => { boom(x, y, 34, S.ab * .8 + tot.maxHp * .05, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 40); if (e2) bolt(e2, .4, { silent: true }); });
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };
@@ -122,6 +122,6 @@ F.tectonic.fire = () => {
   sfx('rumble', .8);
   FX({ k: 'boom', x: p.x, y: p.y, r: 140, life: .5, col });
   for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + rnd(-.2, .2), l = rnd(90, 140); FX({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(an) * l, y2: p.y + Math.sin(an) * l, life: .6 }); }
-  eachNear(p.x, p.y, 140, e => { dmg(e, S.avg * .8 + tot.maxHp * .08, { col }); if (hot) burn(e, burnFrom(S.avg)); else { chill(e, 2); if (Math.random() < .3) freeze(e); } });
+  eachNear(p.x, p.y, 140, e => { dmg(e, S.ab * .8 + tot.maxHp * .08, { col }); if (hot) burn(e, burnFrom(S.ab)); else { chill(e, 2); if (Math.random() < .3) freeze(e); } });
 };
 F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .6, { noChain: true }); };

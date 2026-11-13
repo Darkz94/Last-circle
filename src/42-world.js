@@ -160,7 +160,7 @@ function updProjectiles(dt) {
     else eachNear(z.x, z.y, z.r, e => { dmg(e, z.dps * .3, { col: COL.blue }); chill(e, 1); });
   }
   S.zones = S.zones.filter(z => z.life > 0);
-  for (const pi of S.pillars) { pi.life -= dt; pi.tick -= dt; if (pi.tick <= 0) { pi.tick = .4; eachNear(pi.x, pi.y, pi.r, e => { chill(e, 1); dmg(e, S.avg * .1, { col: COL.blue }); }); } }
+  for (const pi of S.pillars) { pi.life -= dt; pi.tick -= dt; if (pi.tick <= 0) { pi.tick = .4; eachNear(pi.x, pi.y, pi.r, e => { chill(e, 1); dmg(e, S.ab * .1, { col: COL.blue }); }); } }
   S.pillars = S.pillars.filter(pi => pi.life > 0);
   for (const o of S.orbs) {
     o.life -= dt; o.tick -= dt;
@@ -216,11 +216,11 @@ function updSummons(dt) {
     FX({ k: 'icebeam', x1: w.x, y1: w.y - 14, x2: tg.x, y2: tg.y, life: .25 });
     FX({ k: 'ring', x: tg.x, y: tg.y, r: 60, life: .35, col: ICE });
     sfx('hit_blue');
-    eachNear(tg.x, tg.y, 60, e => { chill(e, 2); dmg(e, S.avg * .3, { col: COL.blue }); });
+    eachNear(tg.x, tg.y, 60, e => { chill(e, 2); dmg(e, S.ab * .3, { col: COL.blue }); });
     if (w.ptick <= 0) { w.ptick = 4; addPillar(tg.x, tg.y, 4, 55); }
   }
   S.wizards = S.wizards.filter(w => w.life > 0);
-  for (const b of S.walls) { b.life -= dt; b.tick -= dt; if (b.tick <= 0) { b.tick = .4; eachNear(b.x, b.y, b.r + 10, e => { chill(e, 1); dmg(e, S.avg * .2, { col: COL.blue }); }); } }
+  for (const b of S.walls) { b.life -= dt; b.tick -= dt; if (b.tick <= 0) { b.tick = .4; eachNear(b.x, b.y, b.r + 10, e => { chill(e, 1); dmg(e, S.ab * .2, { col: COL.blue }); }); } }
   S.walls = S.walls.filter(b => b.life > 0);
 }
 

@@ -90,8 +90,8 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 1,  base: 1,   cap: 10,  u: '%', t: "strike damage (% of the target's current HP)" },
-    { k: 'strikeCh', v: 5, base: 20, cap: 100, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
+    { k: 'strike', v: 1,  base: 10,  cap: 10,  u: '%', t: "strike damage (% of the target's current HP)" },
+    { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
     { k: 'jumps',  v: 1,  base: 2,   cap: 7,   u: '',  t: 'arc jumps' },
@@ -139,6 +139,9 @@ const BUFFS = [
 let GOLD_RATE = .55;    // global scale on gold drops (enemies, goblins, caches)
 // gold is tight up to wave 20, then plentiful: endless doubles it and adds 10% per wave
 const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) : 1);
+// ability power: every ability's own base damage. It grows a little each wave to keep pace with enemies,
+// and damage % is the only stat that scales it (flat damage, tiers and crit chance on weapons don't).
+const abilityBase = w => 8 + 2.2 * w;
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }

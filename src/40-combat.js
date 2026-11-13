@@ -49,7 +49,7 @@ function burn(e, total, o) {
   if (e.frozen > 0 && !inSteam && syn('thermal') >= 0) {
     // Thermal Shock: fire on a frozen enemy bursts into steam
     inSteam = true; e.frozen = 0;
-    boom(e.x, e.y, 60, S.avg * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, src: 'steam', freezeCh: syn('thermal') ? 100 : 0 });
+    boom(e.x, e.y, 60, S.ab * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, src: 'steam', freezeCh: syn('thermal') ? 100 : 0 });
     inSteam = false;
   }
   if (!e.bs) e.bs = [];
@@ -135,7 +135,7 @@ function lightningDmg(e, mult, crit, pct) {
   if (cd && (e.stun > 0 || isCold(e))) m *= 1 + cd / 100;
   if (syn('plasma') === 1 && e.burnT > 0) m *= 2;
   if (crit) m *= tot.critMult;
-  if (!pct) return S.avg * mult * m;
+  if (!pct) return S.ab * mult * m;
   let p = E('yellow', 'strike') * mult * m;
   if (e.boss) p *= .25; else if (e.elite) p *= .5;
   return Math.max(0, Math.min(e.hp - 1, e.hp * p / 100));
@@ -152,7 +152,7 @@ function bolt(e, mult, o) {
   const ex = sv('smite');
   if (ex && !e.dead && !e.boss && e.hp < e.maxHp * ex / 100) { e.noKillFx = true; FX({ k: 'ring', x: e.x, y: e.y, r: e.r + 10, life: .25, col: '#ffffff' }); dmg(e, e.hp + 1, { tr: true, col: '#ffffff', src: 'execute' }); return; }
   if (Math.random() * 100 < E('yellow', 'lstun')) stun(e, .6);
-  if (syn('plasma') >= 0 && !e.dead) burn(e, burnFrom(S.avg));
+  if (syn('plasma') >= 0 && !e.dead) burn(e, burnFrom(S.ab));
   if (o.silent) return;
   const ov = sv('overload');
   if (ov && d > 0) boom(e.x, e.y, sv('overload', 'r'), d * ov / 100, '#ffe066', { small: true, src: 'lightning', quiet: true });
@@ -190,7 +190,7 @@ function thorns(e, bash) {
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
   const td = dmg(e, Math.max(1, raw - Math.max(0, e.armor - tot.thornPen)), { col: '#e6c882', pierce: true, src: 'thorns' });
   if (tot.leech) heal(td * tot.leech / 100);
-  if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.avg)));
+  if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.ab)));
   if (!e.dead && syn('permafrost') >= 0) chill(e, 2);
   sfx('thorn', bash ? .5 : 1);
   FX({ k: 'spikes', x: S.p.x, y: S.p.y, dir: Math.atan2(e.y - S.p.y, e.x - S.p.x), life: .25 });

@@ -73,6 +73,7 @@ function step(dt) {
   if (S.hitstop > 0) { S.hitstop -= dt; updFx(dt * .2); return; }   // freeze-frame on heavy impacts
   S.time += dt; if (S.phase === 'fight') S.rs.time += dt;
   S.avg = avgDmg();
+  S.ab = abilityBase(Math.max(1, S.wave)) * (1 + tot.dmgPct / 100) * (S.buff && S.buff.dmg ? 1 + S.buff.dmg : 1);
   grid.build(S.enemies);
   updPlayer(dt);
   updSpawner(dt);
