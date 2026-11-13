@@ -37,15 +37,17 @@ const SYN_PAIRS = {
   ]),
 };
 const SYN_TRIOS = {
-  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 10s a storm of fire, ice and lightning hits every enemy in the circle' }])[0],
-  'red+yellow+green': synDef(['red', 'yellow', 'green'], [{ id: 'volcano', name: 'Volcano', minor: '', major: 'Every 8s a vent erupts near you, raining burning, electrified rocks on enemies' }])[0],
-  'red+blue+green': synDef(['red', 'blue', 'green'], [{ id: 'tectonic', name: 'Tectonic', minor: '', major: 'Every 3s a quake ripples out from you, alternately igniting and freezing' }])[0],
-  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: faster, and every hit chills and shocks' }])[0],
+  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 7.5s a storm of fire, ice and lightning hits every enemy in the circle' }])[0],
+  'red+yellow+green': synDef(['red', 'yellow', 'green'], [{ id: 'volcano', name: 'Volcano', minor: '', major: 'Every 6s a vent erupts near you, raining burning, electrified rocks on enemies' }])[0],
+  'red+blue+green': synDef(['red', 'blue', 'green'], [{ id: 'tectonic', name: 'Tectonic', minor: '', major: 'Every 2.3s a quake ripples out from you, alternately igniting and freezing' }])[0],
+  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: faster, and every hit chills and shocks hard' }])[0],
 };
 const SYN_COUNT = 12 + 4;
-const synText = (a, s) => a.els.length === 3 ? a.major : s ? `${a.minor}. ${a.major}` : a.minor;
+const TRIO_NOTE = 'Also switches on the minor synergy of each pair inside it';
+const synText = (a, s) => a.els.length === 3 ? `${a.major}. ${TRIO_NOTE}` : s ? `${a.minor}. ${a.major}` : a.minor;
 const rollSyn = () => Object.fromEntries(PAIRS.map(([a, b]) => [pairKey(a, b), Math.random() < .5 ? 0 : 1]));
-const syn = id => S.synId === id ? S.synS : -1;
+// active synergy strength: -1 off, 0 minor, 1 major. A trio also switches on the minor of each pair inside it.
+const syn = id => S.synId === id ? S.synS : S.synExtra && S.synExtra[id] !== undefined ? S.synExtra[id] : -1;
 const golemsOf = () => S.colossus ? S.golems.concat(S.colossus) : S.golems;
 
 // work out which synergy (if any) the current weapons form
@@ -88,7 +90,7 @@ F.glacier.frame = (a, s, dt) => {
   for (const g of golemsOf()) if (!g.thrall) eachNear(g.x, g.y, g.big ? 70 : 45, e => chill(e, 1));
 };
 F.glacier.gDie = (a, s, g) => { if (s) boom(g.x, g.y, 60, tot.maxHp * .15, ICE, { chill: 2, pierce: true, small: true }); };
-F.cataclysm.cd = 10;
+F.cataclysm.cd = 7.5;
 F.cataclysm.fire = () => {
   sfx('boss'); S.shake = Math.min(6, S.shake + 4); hitstop(.05);
   FX({ k: 'boom', x: 0, y: 0, r: R, life: .7, col: '#ffffff' });
@@ -96,7 +98,7 @@ F.cataclysm.fire = () => {
   for (const e of list) { dmg(e, S.ab * 1.5, { col: '#ffffff' }); burn(e, burnFrom(S.ab * 1.5)); chill(e, 2); }
   shuffle(list).slice(0, 12).forEach((e, i) => later(i * .05, () => bolt(e, 1, { noChain: true })));
 };
-F.volcano.cd = 8;
+F.volcano.cd = 6;
 F.volcano.fire = () => {
   const a = Math.random() * TAU, x = S.p.x + Math.cos(a) * 60, y = S.p.y + Math.sin(a) * 60;
   sfx('rumble', 1.2);
@@ -116,7 +118,7 @@ F.volcano.frame = (a, s, dt) => {
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };
-F.tectonic.cd = 3;
+F.tectonic.cd = 2.3;
 F.tectonic.fire = () => {
   const p = S.p, hot = (S.tecN = (S.tecN || 0) + 1) % 2 === 1, col = hot ? FIRE : ICE;
   sfx('rumble', .8);
@@ -124,4 +126,4 @@ F.tectonic.fire = () => {
   for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + rnd(-.2, .2), l = rnd(90, 140); FX({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(an) * l, y2: p.y + Math.sin(an) * l, life: .6 }); }
   eachNear(p.x, p.y, 140, e => { dmg(e, S.ab * .8 + tot.maxHp * .08, { col }); if (hot) burn(e, burnFrom(S.ab)); else { chill(e, 2); if (Math.random() < .3) freeze(e); } });
 };
-F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .6, { noChain: true }); };
+F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .9, { noChain: true }); };

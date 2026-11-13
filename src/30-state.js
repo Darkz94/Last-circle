@@ -69,7 +69,11 @@ function recalc() {
   for (const id of S.relics) { S.relicOn[id] = 1; S.mods.push({ a: RELIC[id], s: 0 }); }
   const sy = findSynergy(S.counts);
   S.synId = sy ? sy.a.id : null; S.synS = sy ? sy.s : 0;
-  if (sy) { S.mods.push(sy); if (codexSee('syn', sy.a.id)) S.synNote = sy.a.id; }
+  S.synExtra = {};
+  if (sy) {
+    S.mods.push(sy); if (codexSee('syn', sy.a.id)) S.synNote = sy.a.id;
+    if (sy.a.els.length === 3) { const e3 = sy.a.els; for (const [x, z] of [[e3[0], e3[1]], [e3[0], e3[2]], [e3[1], e3[2]]]) { const k = pairKey(x, z), p = SYN_PAIRS[k][S.synRoll[k]]; S.mods.push({ a: p, s: 0 }); S.synExtra[p.id] = 0; codexSee('syn', p.id); } }
+  }
   S.hk = {};
   for (const m of S.mods) for (const h of HOOKS) if (m.a[h]) (S.hk[h] || (S.hk[h] = [])).push(m);
 

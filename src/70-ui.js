@@ -43,12 +43,12 @@ function elemSetsHtml(sets, counts) {
 // synergy list: hidden until discovered (in any run). Shows this run's version of each pair.
 function synHtml(roll, counts) {
   const row = (a, label, s) => {
-    const known = CODEX.syn[a.id], on = S && S.synId === a.id;
+    const known = CODEX.syn[a.id], on = S && syn(a.id) >= 0;
     const cols = a.els.map(c => COL[c]), lbl = a.els.map(c => `<b style="color:${COL[c]}">${ELEM[c]}</b>`).join(' + ');
     if (!known) return `<div class="cx" style="--c:${cols[0]};border-left:3px solid;border-image:linear-gradient(${cols.join(',')}) 1">${lbl}: <b>???</b><br><span class="hint">${label}</span></div>`;
-    return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? a.major : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
+    return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? `${a.major}.<br><span class="hint">${TRIO_NOTE}.</span>` : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
   };
-  let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && S.synId === SYN_PAIRS[k][roll[k]].id ? S.synS : 0); }).join('');
+  let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && syn(SYN_PAIRS[k][roll[k]].id) > 0 ? 1 : 0); }).join('');
   h += '<h3>Trios <span>· own 2 each of three elements</span></h3>' + TRIOS.map(t => row(SYN_TRIOS[t.join('+')], 'Own 2 of each of these three to reveal', 1)).join('');
   return h;
 }
@@ -220,7 +220,7 @@ function renderRunStats() {
     const fought = []; for (let w = 10; w <= S.wave; w += 10) fought.push(`<span class="chip" style="--c:${BOSSES[bossKeyFor(w)].col}">W${w} ${BOSSES[bossKeyFor(w)].name}</span>`);
     body = countChips() + `<h3>Weapons</h3><div class="grid3">${S.weapons.map(w => weaponCard(w, null)).join('')}</div>
       ${ab ? `<h3>Active abilities</h3>${ab}` : ''}
-      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>` : ''}
+      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${sy.els.length === 3 ? 'trio' : S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>${Object.keys(S.synExtra || {}).map(id => `<div class="cx" style="--c:var(--green)"><b>${SYN[id].name}</b> <span class="hint">minor, from the trio</span><br>${SYN[id].minor}</div>`).join('')}` : ''}
       ${fought.length ? `<h3>Bosses faced</h3><div class="chips">${fought.join('')}</div>` : ''}
       <h3>Final stats</h3>${statsHtml()}<h3>Weapon type bonuses</h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
   }

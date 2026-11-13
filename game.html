@@ -172,7 +172,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 16;
+const GAME_VERSION = 17;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -484,7 +484,7 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 10, base: 90,  cap: 190, u: '%', t: 'lightning damage' },
+    { k: 'strike', v: 10, base: 33,  cap: 133, u: '%', t: 'lightning damage' },
     { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
@@ -767,15 +767,17 @@ const SYN_PAIRS = {
   ]),
 };
 const SYN_TRIOS = {
-  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 10s a storm of fire, ice and lightning hits every enemy in the circle' }])[0],
-  'red+yellow+green': synDef(['red', 'yellow', 'green'], [{ id: 'volcano', name: 'Volcano', minor: '', major: 'Every 8s a vent erupts near you, raining burning, electrified rocks on enemies' }])[0],
-  'red+blue+green': synDef(['red', 'blue', 'green'], [{ id: 'tectonic', name: 'Tectonic', minor: '', major: 'Every 3s a quake ripples out from you, alternately igniting and freezing' }])[0],
-  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: faster, and every hit chills and shocks' }])[0],
+  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 7.5s a storm of fire, ice and lightning hits every enemy in the circle' }])[0],
+  'red+yellow+green': synDef(['red', 'yellow', 'green'], [{ id: 'volcano', name: 'Volcano', minor: '', major: 'Every 6s a vent erupts near you, raining burning, electrified rocks on enemies' }])[0],
+  'red+blue+green': synDef(['red', 'blue', 'green'], [{ id: 'tectonic', name: 'Tectonic', minor: '', major: 'Every 2.3s a quake ripples out from you, alternately igniting and freezing' }])[0],
+  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: faster, and every hit chills and shocks hard' }])[0],
 };
 const SYN_COUNT = 12 + 4;
-const synText = (a, s) => a.els.length === 3 ? a.major : s ? `${a.minor}. ${a.major}` : a.minor;
+const TRIO_NOTE = 'Also switches on the minor synergy of each pair inside it';
+const synText = (a, s) => a.els.length === 3 ? `${a.major}. ${TRIO_NOTE}` : s ? `${a.minor}. ${a.major}` : a.minor;
 const rollSyn = () => Object.fromEntries(PAIRS.map(([a, b]) => [pairKey(a, b), Math.random() < .5 ? 0 : 1]));
-const syn = id => S.synId === id ? S.synS : -1;
+// active synergy strength: -1 off, 0 minor, 1 major. A trio also switches on the minor of each pair inside it.
+const syn = id => S.synId === id ? S.synS : S.synExtra && S.synExtra[id] !== undefined ? S.synExtra[id] : -1;
 const golemsOf = () => S.colossus ? S.golems.concat(S.colossus) : S.golems;
 
 // work out which synergy (if any) the current weapons form
@@ -818,7 +820,7 @@ F.glacier.frame = (a, s, dt) => {
   for (const g of golemsOf()) if (!g.thrall) eachNear(g.x, g.y, g.big ? 70 : 45, e => chill(e, 1));
 };
 F.glacier.gDie = (a, s, g) => { if (s) boom(g.x, g.y, 60, tot.maxHp * .15, ICE, { chill: 2, pierce: true, small: true }); };
-F.cataclysm.cd = 10;
+F.cataclysm.cd = 7.5;
 F.cataclysm.fire = () => {
   sfx('boss'); S.shake = Math.min(6, S.shake + 4); hitstop(.05);
   FX({ k: 'boom', x: 0, y: 0, r: R, life: .7, col: '#ffffff' });
@@ -826,7 +828,7 @@ F.cataclysm.fire = () => {
   for (const e of list) { dmg(e, S.ab * 1.5, { col: '#ffffff' }); burn(e, burnFrom(S.ab * 1.5)); chill(e, 2); }
   shuffle(list).slice(0, 12).forEach((e, i) => later(i * .05, () => bolt(e, 1, { noChain: true })));
 };
-F.volcano.cd = 8;
+F.volcano.cd = 6;
 F.volcano.fire = () => {
   const a = Math.random() * TAU, x = S.p.x + Math.cos(a) * 60, y = S.p.y + Math.sin(a) * 60;
   sfx('rumble', 1.2);
@@ -846,7 +848,7 @@ F.volcano.frame = (a, s, dt) => {
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };
-F.tectonic.cd = 3;
+F.tectonic.cd = 2.3;
 F.tectonic.fire = () => {
   const p = S.p, hot = (S.tecN = (S.tecN || 0) + 1) % 2 === 1, col = hot ? FIRE : ICE;
   sfx('rumble', .8);
@@ -854,7 +856,7 @@ F.tectonic.fire = () => {
   for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + rnd(-.2, .2), l = rnd(90, 140); FX({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(an) * l, y2: p.y + Math.sin(an) * l, life: .6 }); }
   eachNear(p.x, p.y, 140, e => { dmg(e, S.ab * .8 + tot.maxHp * .08, { col }); if (hot) burn(e, burnFrom(S.ab)); else { chill(e, 2); if (Math.random() < .3) freeze(e); } });
 };
-F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .6, { noChain: true }); };
+F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .9, { noChain: true }); };
 
 // ===== state: one run lives in S. Totals (tot) are derived from weapons, sets, relics and level-ups by recalc().
 let S = null, paused = false, pendingRun = null;
@@ -927,7 +929,11 @@ function recalc() {
   for (const id of S.relics) { S.relicOn[id] = 1; S.mods.push({ a: RELIC[id], s: 0 }); }
   const sy = findSynergy(S.counts);
   S.synId = sy ? sy.a.id : null; S.synS = sy ? sy.s : 0;
-  if (sy) { S.mods.push(sy); if (codexSee('syn', sy.a.id)) S.synNote = sy.a.id; }
+  S.synExtra = {};
+  if (sy) {
+    S.mods.push(sy); if (codexSee('syn', sy.a.id)) S.synNote = sy.a.id;
+    if (sy.a.els.length === 3) { const e3 = sy.a.els; for (const [x, z] of [[e3[0], e3[1]], [e3[0], e3[2]], [e3[1], e3[2]]]) { const k = pairKey(x, z), p = SYN_PAIRS[k][S.synRoll[k]]; S.mods.push({ a: p, s: 0 }); S.synExtra[p.id] = 0; codexSee('syn', p.id); } }
+  }
   S.hk = {};
   for (const m of S.mods) for (const h of HOOKS) if (m.a[h]) (S.hk[h] || (S.hk[h] = [])).push(m);
 
@@ -2717,12 +2723,12 @@ function elemSetsHtml(sets, counts) {
 // synergy list: hidden until discovered (in any run). Shows this run's version of each pair.
 function synHtml(roll, counts) {
   const row = (a, label, s) => {
-    const known = CODEX.syn[a.id], on = S && S.synId === a.id;
+    const known = CODEX.syn[a.id], on = S && syn(a.id) >= 0;
     const cols = a.els.map(c => COL[c]), lbl = a.els.map(c => `<b style="color:${COL[c]}">${ELEM[c]}</b>`).join(' + ');
     if (!known) return `<div class="cx" style="--c:${cols[0]};border-left:3px solid;border-image:linear-gradient(${cols.join(',')}) 1">${lbl}: <b>???</b><br><span class="hint">${label}</span></div>`;
-    return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? a.major : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
+    return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? `${a.major}.<br><span class="hint">${TRIO_NOTE}.</span>` : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
   };
-  let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && S.synId === SYN_PAIRS[k][roll[k]].id ? S.synS : 0); }).join('');
+  let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && syn(SYN_PAIRS[k][roll[k]].id) > 0 ? 1 : 0); }).join('');
   h += '<h3>Trios <span>· own 2 each of three elements</span></h3>' + TRIOS.map(t => row(SYN_TRIOS[t.join('+')], 'Own 2 of each of these three to reveal', 1)).join('');
   return h;
 }
@@ -2894,7 +2900,7 @@ function renderRunStats() {
     const fought = []; for (let w = 10; w <= S.wave; w += 10) fought.push(`<span class="chip" style="--c:${BOSSES[bossKeyFor(w)].col}">W${w} ${BOSSES[bossKeyFor(w)].name}</span>`);
     body = countChips() + `<h3>Weapons</h3><div class="grid3">${S.weapons.map(w => weaponCard(w, null)).join('')}</div>
       ${ab ? `<h3>Active abilities</h3>${ab}` : ''}
-      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>` : ''}
+      ${sy ? `<h3>Synergy</h3><div class="cx" style="--c:var(--green)"><b>${sy.name}</b> <span class="hint">${sy.els.length === 3 ? 'trio' : S.synS ? 'major' : 'minor'}</span><br>${synText(sy, S.synS)}</div>${Object.keys(S.synExtra || {}).map(id => `<div class="cx" style="--c:var(--green)"><b>${SYN[id].name}</b> <span class="hint">minor, from the trio</span><br>${SYN[id].minor}</div>`).join('')}` : ''}
       ${fought.length ? `<h3>Bosses faced</h3><div class="chips">${fought.join('')}</div>` : ''}
       <h3>Final stats</h3>${statsHtml()}<h3>Weapon type bonuses</h3>${typeSetsHtml(S.typeSets, S.tcounts)}`;
   }

@@ -90,7 +90,7 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 10, base: 90,  cap: 190, u: '%', t: 'lightning damage' },
+    { k: 'strike', v: 10, base: 33,  cap: 133, u: '%', t: 'lightning damage' },
     { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
