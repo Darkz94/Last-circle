@@ -29,7 +29,7 @@ function dmg(e, amt, o) {
     if (isCold(e)) m *= 1 + E('blue', 'vsChill') / 100;
     const hs = S.hk.mult; if (hs) for (const h of hs) m *= h.a.mult(h.a, h.s, e);
     d *= m;
-    if (!o.pierce) d = Math.max(1, d - Math.max(0, e.armor - tot.pen));
+    if (!o.pierce) d = Math.max(1, d * armRed(Math.max(0, e.armor - tot.pen)));
   }
   const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
   e.hp -= d; e.hitT = .12;
@@ -123,22 +123,15 @@ function inCone(e, x, y, dir, half, range) {
 }
 function addPillar(x, y, life, r) { if (S.pillars.length >= 6) S.pillars.shift(); S.pillars.push({ x, y, life, tick: 0, r }); sfx('freeze'); FX({ k: 'ring', x, y, r, life: .4, col: ICE }); }
 
-// ---- lightning. Two kinds:
-//  * the Lightning strike (called by Lightning weapon hits, plus its arcs, repeats and calls) takes a % of the
-//    target's CURRENT HP, so it fades as the enemy weakens and never kills on its own. Elites take half the %,
-//    bosses a quarter. Crits multiply the %; damage % and flat damage don't touch it.
-//  * every other bolt (abilities, synergies) is a normal hit scaled from your average weapon hit.
-// Armor reduces both.
-function lightningDmg(e, mult, crit, pct) {
-  let m = 1;
+// ---- lightning: every strike (from weapon hits, abilities or synergies) is a normal hit worth
+// ability power x its multiplier x lightning damage %. Crits multiply it, armor reduces it.
+function lightningDmg(e, mult, crit) {
+  let m = E('yellow', 'strike') / 100;
   const cd = sv('conductor');
   if (cd && (e.stun > 0 || isCold(e))) m *= 1 + cd / 100;
   if (syn('plasma') === 1 && e.burnT > 0) m *= 2;
   if (crit) m *= tot.critMult;
-  if (!pct) return S.ab * mult * m;
-  let p = E('yellow', 'strike') * mult * m;
-  if (e.boss) p *= .25; else if (e.elite) p *= .5;
-  return Math.max(0, Math.min(e.hp - 1, e.hp * p / 100));
+  return S.ab * mult * m;
 }
 function bolt(e, mult, o) {
   if (!e || e.dead) return;
@@ -146,7 +139,7 @@ function bolt(e, mult, o) {
   if (!o.silent) { FX(o.from ? makeBolt(o.from.x, o.from.y, e.x, e.y) : makeBolt(e.x + rnd(-30, 30), e.y - 260, e.x, e.y)); sfx('zap'); }
   S.rs.strikes++;
   const crit = (syn('supercon') === 1 && e.frozen > 0) || Math.random() * 100 < tot.crit + E('yellow', 'lcrit');
-  const pct = !!o.pct, d = lightningDmg(e, mult, crit, pct);
+  const pct = !!o.pct, d = lightningDmg(e, mult, crit);
   if (d > 0) dmg(e, d, { col: COL.yellow, src: 'lightning', crit });
   // Execute: a strike finishes off a weakened non-boss outright, with no on-kill effects
   const ex = sv('smite');
@@ -181,14 +174,14 @@ function makeBolt(x1, y1, x2, y2) {
 }
 
 // ---- thorns (Earth only): every enemy attack is punished, even ones you're invulnerable to.
-// flat thorns x thorn multiplier (+ Retribution's share of the hit), minus enemy armor reduced by thorn penetration.
+// flat thorns x thorn multiplier (+ Retribution's share of the hit), reduced by enemy armor (as a %) after thorn penetration.
 function thorns(e, bash) {
   if (e.dead) return;
   const rt = sv('retri');
   if (tot.thornFlat <= 0 && !rt) return;
   let raw = tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100;
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
-  const td = dmg(e, Math.max(1, raw - Math.max(0, e.armor - tot.thornPen)), { col: '#e6c882', pierce: true, src: 'thorns' });
+  const td = dmg(e, Math.max(1, raw * armRed(Math.max(0, e.armor - tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns' });
   if (tot.leech) heal(td * tot.leech / 100);
   if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.ab)));
   if (!e.dead && syn('permafrost') >= 0) chill(e, 2);
@@ -198,7 +191,7 @@ function thorns(e, bash) {
 function hurt(d, src) {
   const p = S.p;
   if (p.inv > 0) return;
-  d = Math.max(1, d - tot.armor - ((S.buff && S.buff.armor) || 0));
+  d = Math.max(1, d * armRed(tot.armor + ((S.buff && S.buff.armor) || 0)));
   if (rel('hide')) d *= .85;
   p.hp -= d; S.rs.taken += d; S.rs.low = Math.min(S.rs.low, Math.max(0, p.hp) / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
   sfx('hurt'); hitstop(.045);

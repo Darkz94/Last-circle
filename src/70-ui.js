@@ -22,7 +22,7 @@ const coin = n => `<span class="gc">●</span> ${n}`;
 function elemLine(w) {
   const g = (c, k) => S ? E(c, k) : EDEF[c][k].base, t = w.tier;
   if (w.el === 'red') return w.evo ? 'Always ignites · 25% chance to explode' : `${fmt(g('red', 'ign'))}% chance to ignite`;
-  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'strikeCh'))}% to call a strike for ${fmt(g('yellow', 'strike'))}% of current HP${w.evo ? ' · 35% extra strike chance' : ''}`;
+  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'strikeCh'))}% to call a lightning strike${w.evo ? ' · 35% extra strike chance' : ''}`;
   if (w.el === 'blue') return `${fmt(g('blue', 'chillCh'))}% chance to chill (+${(t >= 2 ? 2 : 1) + (w.evo ? 1 : 0)}); 4 freezes${w.evo ? ' · 12% instant freeze' : ''}`;
   return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
@@ -71,7 +71,7 @@ function statsHtml() {
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
     ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
-    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', fmt(tot.armor))}${row('Penetration', fmt(tot.pen))}
+    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round((1 - armRed(tot.armor)) * 100)}% damage)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * tot.thornPct / 100)} (pen ${fmt(tot.thornPen)})` : '—')}
   </div>

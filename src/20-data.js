@@ -90,7 +90,7 @@ const EPASS = {
     { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 1,  base: 10,  cap: 10,  u: '%', t: "strike damage (% of the target's current HP)" },
+    { k: 'strike', v: 10, base: 90,  cap: 190, u: '%', t: 'lightning damage' },
     { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
@@ -146,6 +146,9 @@ const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
+// armor is a % reduction for everyone: armor / (armor + ARM_K). 25 armor = 33% less damage, 50 = 50%, 100 = 67%.
+const ARM_K = 50;
+const armRed = a => a > 0 ? ARM_K / (ARM_K + a) : 1;   // damage multiplier left after armor
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 12 : 0)); }
 function enemyPool(w) {

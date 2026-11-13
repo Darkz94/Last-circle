@@ -1,1 +1,1 @@
-{ "version": 13, "notes": "Abilities now have their own power scaled by damage %, lightning strikes are a flat 10% with strike chance 10-50%, rebalanced builds." }
+{ "version": 14, "notes": "Armor is now a % reduction for everyone. Lightning strikes deal ability damage (no more % health). Strikes Twice toned down." }
