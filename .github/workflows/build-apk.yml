@@ -1,10 +1,13 @@
 name: Build Android APK
 
-# Runs on every push to main (and can be started by hand from the Actions tab).
+# Runs on every push to main or beta (and can be started by hand from the Actions tab).
 # Wraps the game in a Capacitor Android app, builds an APK and publishes it as a release.
+#  - main -> "Last Circle"      (com.darkz94.lastcircle),      release v1.0.N, LastCircle.apk
+#  - beta -> "Last Circle Beta" (com.darkz94.lastcircle.beta), release "beta",  LastCircleBeta.apk
+#    The beta app installs next to the normal one, keeps its own save and updates from the beta branch.
 on:
   push:
-    branches: [main]
+    branches: [main, beta]
   workflow_dispatch:
 
 permissions:
@@ -13,6 +16,8 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    env:
+      BETA: ${{ github.ref_name == 'beta' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -33,10 +38,18 @@ jobs:
           mkdir -p app/www
           cp index.html game.html manifest.webmanifest *.png app/www/
           cp -r fonts app/www/
+          if [ "$BETA" = "true" ]; then
+            # mark the beta build so the game updates from the beta branch
+            sed -i "s#<script>#<script>try { localStorage.setItem('lcChannel', 'beta'); } catch (e) {}\n#" app/www/index.html
+            sed -i 's#<title>Last Circle</title>#<title>Last Circle Beta</title>#' app/www/index.html
+            APP_NAME="Last Circle Beta"; APP_ID=com.darkz94.lastcircle.beta
+          else
+            APP_NAME="Last Circle"; APP_ID=com.darkz94.lastcircle
+          fi
           cd app
           npm init -y > /dev/null
           npm install @capacitor/core@7 @capacitor/cli@7 @capacitor/android@7
-          npx cap init "Last Circle" com.darkz94.lastcircle --web-dir www
+          npx cap init "$APP_NAME" $APP_ID --web-dir www
           npx cap add android
           npx cap sync android
 
@@ -62,8 +75,10 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
           cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/LastCircle.apk
+          cp app/build/outputs/apk/debug/app-debug.apk $GITHUB_WORKSPACE/LastCircleBeta.apk
 
       - name: Publish release
+        if: env.BETA != 'true'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v1.0.${{ github.run_number }}
@@ -71,3 +86,14 @@ jobs:
           body: Download **LastCircle.apk** below and open it on your Android phone to install.
           files: LastCircle.apk
           make_latest: true
+
+      - name: Publish beta release
+        if: env.BETA == 'true'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: beta
+          name: Last Circle Beta
+          body: Beta build ${{ github.run_number }} from the beta branch. Download **LastCircleBeta.apk** to install it next to the normal app (it keeps its own save).
+          files: LastCircleBeta.apk
+          prerelease: true
+          make_latest: false

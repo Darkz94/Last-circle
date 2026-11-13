@@ -50,7 +50,7 @@ function updMods(dt) {
     const a = h.a, cd = a.cd || a.v[h.s];
     let t = S.timers[a.id]; if (t === undefined) t = cd * .5;
     t -= dt * rate;
-    if (t <= 0) { t = cd; a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }
+    if (t <= 0) { t = cd; inArea(() => { a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }); }
     S.timers[a.id] = t;
   }
   const fs = S.hk.frame; if (fs) for (const h of fs) h.a.frame(h.a, h.s, dt);

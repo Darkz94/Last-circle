@@ -30,7 +30,7 @@ function freshState(sets, tsets, synRoll, bossOrder) {
     rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
-    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0 },
+    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0, area: 0 },
     ep: { red: {}, yellow: {}, blue: {}, green: {} },
     runSets: sets, typeSets: tsets, counts: {}, tcounts: {}, on: {}, mods: [], hk: {}, relics: [], relicOn: {},
     pendingRelic: 0, relicOffer: null,
@@ -84,6 +84,7 @@ function recalc() {
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
+  t.areaM = 1 + (S.st.area || 0) / 100;   // ability area
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
   t.maxHp += 3 * lv; t.dmgPct += 1.5 * lv; t.atkSpd += .75 * lv; t.armor += .4 * lv; t.regen += .08 * lv;
@@ -157,7 +158,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => d.syn[pairKey(a, b)] === 0 || d.syn[pairKey(a, b)] === 1);
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
+  Object.assign(S.st, { area: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;

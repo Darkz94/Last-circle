@@ -70,7 +70,7 @@ function statsHtml() {
   const passives = ORDER.map(c => { const ch = EPASS[c].filter(d => S.ep[c][d.k]).map(d => `${d.t} <b>${unit(E(c, d.k), d.u)}</b>`); return ch.map(x => `<span class="chip" style="--c:${COL[c]};white-space:normal">${x}</span>`).join(''); }).join('');
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
-    ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
+    ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
     ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round((1 - armRed(tot.armor)) * 100)}% damage)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * tot.thornPct / 100)} (pen ${fmt(tot.thornPen)})` : '—')}
@@ -96,7 +96,7 @@ function renderStart() {
   } else if (UI.stab === 'elements') body = `<h3>This run's element bonuses <span>· own 2 / 4 / 6 weapons of a colour</span></h3>${elemSetsHtml(pendingRun.sets)}<h3>Synergies <span>· mix elements: 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(pendingRun.syn)}`;
   else if (UI.stab === 'types') body = `<h3>This run's weapon type bonuses <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(pendingRun.tsets)}`;
   else body = codexHtml();
-  showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}`,
+  showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}${CHANNEL === 'beta' ? ' · <b style="color:var(--gold)">BETA</b>' : ''}`,
     tabs: [['play', 'Play'], ['elements', 'Elements'], ['types', 'Weapons'], ['codex', `Codex ${seen}/${total}`]], tab: UI.stab, tabAct: 'stab', body }), 'start:' + UI.stab);
 }
 function codexHtml() {

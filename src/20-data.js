@@ -57,6 +57,7 @@ const PRIM = [
   { k: 'regen',   v: .6,  t: v => `+${v} HP regen / sec` },
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
+  { k: 'area',    v: 10,  t: v => `+${v}% ability area` },
 ];
 
 // ---- tuning numbers

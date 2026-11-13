@@ -1,7 +1,9 @@
 // ===== input, in-app updates, main loop, boot
 
 // ---- in-app updates: the installed app checks GitHub for a newer game and can install it in place
-const UPDATE_BASE = 'https://raw.githubusercontent.com/Darkz94/last-circle/main/';
+// the beta app (a separate install) is marked by its loader and updates from the 'beta' branch instead of 'main'
+let CHANNEL = 'main'; try { CHANNEL = localStorage.getItem('lcChannel') || 'main'; } catch (e) {}
+const UPDATE_BASE = `https://raw.githubusercontent.com/Darkz94/Last-circle/${CHANNEL}/`;
 const IS_APP = !!window.Capacitor;
 let updateInfo = null, updateChecked = false, updating = false;
 function checkUpdate() {

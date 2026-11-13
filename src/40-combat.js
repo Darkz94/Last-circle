@@ -1,8 +1,14 @@
 // ===== combat core: damage, status effects, explosions, lightning, thorns, loot
 const NO = {};
-function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) h.a[n](h.a, h.s, a1, a2, a3); }
-const later = (t, f) => S.later.push({ t, f });
-function FX(o) { o.t = 0; if (S.fx.length < 420) S.fx.push(o); }
+// ability area: anything an ability or synergy does (explosions, nearby checks, zones and their visuals) is
+// scaled by tot.areaM while that ability's code runs. Weapon swings are never scaled.
+let AREA_ON = 0;
+const areaM = () => AREA_ON ? (tot.areaM || 1) : 1;
+function inArea(f) { AREA_ON++; try { return f(); } finally { AREA_ON--; } }
+function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) inArea(() => h.a[n](h.a, h.s, a1, a2, a3)); }
+const later = (t, f) => S.later.push({ t, f: AREA_ON ? () => inArea(f) : f });
+function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < 420) S.fx.push(o); }
+function pushZone(z) { z.r *= areaM(); S.zones.push(z); }
 function puff(x, y, col, n, spd, life) {
   for (let i = 0; i < n && S.pt.length < 520; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
 }
@@ -83,8 +89,9 @@ function chill(e, n) {
 function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
 const boomR = r => r * E('red', 'boomR') / 100;
-function eachNear(x, y, r, fn) { grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
+function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
 function boom(x, y, rad, amt, col, o) {
+  rad *= areaM();
   o = o || NO;
   FX({ k: 'boom', x, y, r: rad, life: .35, col });
   if (!o.small) { S.shake = Math.min(5, S.shake + 1.2); puff(x, y, col, 8, rad * 2.2, .4); if (rad > 80) hitstop(.035); }

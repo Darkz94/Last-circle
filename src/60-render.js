@@ -74,7 +74,7 @@ function draw() {
   }
   for (const pi of S.pillars) { const a = Math.min(1, pi.life); c.fillStyle = `rgba(120,200,255,${.07 * a})`; c.beginPath(); c.arc(pi.x, pi.y, pi.r, 0, TAU); c.fill(); c.strokeStyle = `rgba(190,234,255,${.3 * a})`; c.lineWidth = 1.5; c.setLineDash([3, 5]); c.stroke(); c.setLineDash([]); }
   const halo = sv('halo'); if (halo) { c.strokeStyle = 'rgba(160,220,255,.3)'; c.lineWidth = 2; c.setLineDash([2, 7]); c.lineDashOffset = T * 10; c.beginPath(); c.arc(p.x, p.y, halo, 0, TAU); c.stroke(); c.setLineDash([]); }
-  const aura = sv('inferno'); if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
+  const aura = sv('inferno') ? sv('inferno', 'r') * (tot.areaM || 1) : 0; if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
   for (const ev of S.evs) drawEvent(c, ev, T);
   drawBossWorld(c, T);
   for (const t of S.tele) {

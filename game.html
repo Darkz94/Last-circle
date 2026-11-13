@@ -172,7 +172,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 18;
+const GAME_VERSION = 19;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -451,6 +451,7 @@ const PRIM = [
   { k: 'regen',   v: .6,  t: v => `+${v} HP regen / sec` },
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
+  { k: 'area',    v: 10,  t: v => `+${v}% ability area` },
 ];
 
 // ---- tuning numbers
@@ -586,7 +587,7 @@ const ABIL = {
     { id: 'meteor', name: 'Meteor Shower', v: [8, 6, 4], n: [3, 5, 8], m: [1.5, 2, 2.6], d: (a, s) => `Every ${a.v[s]}s ${a.n[s]} meteors crash down on enemies`,
       fire(a, s) { const dm = S.ab * a.m[s], rr = boomR(55); shuffle(inArena()).slice(0, a.n[s]).forEach((e, i) => { const x = e.x, y = e.y; later(i * .12, () => FX({ k: 'meteor', x, y, r: rr, life: .6 })); later(i * .12 + .6, () => { boom(x, y, rr, dm, FIRE, { ignite: true }); puff(x, y, '#ffb347', 10, 160, .45); }); }); } },
     { id: 'trail', name: 'Firewalker', v: [1.5, 2.5, 3.5], m: [.25, .4, .6], d: (a, s) => `You leave a trail of fire that burns for ${a.v[s]}s`,
-      frame(a, s, dt) { S.trailT -= dt; if (S.trailT <= 0 && S.moving) { S.trailT = .12; if (S.zones.length < 90) S.zones.push({ k: 'fire', x: S.p.x, y: S.p.y, r: 18, life: a.v[s], max: a.v[s], tick: 0, dps: S.ab * a.m[s] }); } } },
+      frame(a, s, dt) { S.trailT -= dt; if (S.trailT <= 0 && S.moving) { S.trailT = .12; if (S.zones.length < 90) pushZone({ k: 'fire', x: S.p.x, y: S.p.y, r: 18, life: a.v[s], max: a.v[s], tick: 0, dps: S.ab * a.m[s] }); } } },
     { id: 'ring', name: 'Ring of Fire', v: [6, 5, 4], rg: [120, 160, 220], m: [.8, 1.1, 1.5], d: (a, s) => `Every ${a.v[s]}s a ring of flame bursts out from you (${a.rg[s]} range)`,
       fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s], spd: 320, hit: new Set(), dmg: S.ab * a.m[s] }); } },
     { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .25, d: (a, s) => `Every 2s, enemies within ${a.r[s]} range of you burn for ${a.v[s] * 6}% of your ability power (its own burn, not a stack)`,
@@ -612,7 +613,7 @@ const ABIL = {
     { id: 'nova', name: 'Frost Nova', v: [90, 120, 160], n: [2, 3, 4], d: (a, s) => `When you're hit, a nova blasts enemies back with ${a.n[s]} chill in a ${a.v[s]} radius`,
       hurt(a, s) { if (S.novaCd > 0) return; S.novaCd = 1; sfx('snap'); const p = S.p; FX({ k: 'boom', x: p.x, y: p.y, r: a.v[s], life: .45, col: '#9fe0ff' }); eachNear(p.x, p.y, a.v[s], e => { dmg(e, S.ab * .5, { col: COL.blue }); chill(e, a.n[s]); knock(e, Math.atan2(e.y - p.y, e.x - p.x), 25); }); } },
     { id: 'blizzard', name: 'Blizzard', v: [9, 7, 5], r: [70, 90, 120], d: (a, s) => `Every ${a.v[s]}s a blizzard rages over the enemies for 4s, chilling and frost-burning everything inside`,
-      fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); S.zones.push({ k: 'snow', x: tg.x, y: tg.y, r: a.r[s], life: 4, max: 4, tick: 0, dps: S.ab * .5 }); } } },
+      fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); pushZone({ k: 'snow', x: tg.x, y: tg.y, r: a.r[s], life: 4, max: 4, tick: 0, dps: S.ab * .5 }); } } },
     { id: 'shards', name: 'Ice Shards', v: [15, 25, 40], n: [3, 4, 6], d: (a, s) => `Frost weapon hits have ${a.v[s]}% chance to spray ${a.n[s]} piercing, chilling ice shards`,
       elHit: true, hit(a, s, w, e, d, dir) { if (Math.random() * 100 >= a.v[s]) return; const n = a.n[s]; for (let i = 0; i < n; i++) { const an = dir + (i - (n - 1) / 2) * .22; S.projs.push({ k: 'shard', x: S.p.x, y: S.p.y, vx: Math.cos(an) * 430, vy: Math.sin(an) * 430, life: .5, dmg: d * .3, hit: new Set() }); } } },
     { id: 'farmor', name: 'Frost Armor', v: [25, 50, 100], d: (a, s) => `Enemies that hit you have ${a.v[s]}% chance to freeze solid`,
@@ -655,7 +656,7 @@ const ABIL = {
     { id: 'plasma', name: 'Plasma Beam', v: [.15, .22, .3], rg: [130, 160, 200], d: (a, s) => `A plasma beam locks onto the nearest enemy within ${a.rg[s]}, zapping it for ${pct(a.v[s])}% of your ability power 10 times a second`,
       frame(a, s, dt) { const tg = nearest(S.p.x, S.p.y, a.rg[s]); S.beam = tg; if (!tg) return; S.beamT -= dt; if (S.beamT <= 0) { S.beamT = .1; bolt(tg, a.v[s], { silent: true }); } } },
     { id: 'tempest', name: 'Lightning Storm', v: [8, 6, 4], i: [.4, .3, .2], d: (a, s) => `Every ${a.v[s]}s a storm settles over the enemies for 4s, striking inside it every ${a.i[s]}s`,
-      fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); S.zones.push({ k: 'storm', x: tg.x, y: tg.y, r: 85, life: 4, max: 4, tick: 0, int: a.i[s] }); } } },
+      fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); pushZone({ k: 'storm', x: tg.x, y: tg.y, r: 85, life: 4, max: 4, tick: 0, int: a.i[s] }); } } },
     { id: 'spirit', name: 'Storm Spirit', v: [9, 7, 5], n: [4, 5, 7], d: (a, s) => `Every ${a.v[s]}s a storm spirit drifts towards the enemies and calls down ${a.n[s]} rapid strikes before fading`,
       fire(a, s) { sfx('summon'); S.spirits.push({ x: S.p.x, y: S.p.y, life: 14, state: 'walk', n: a.n[s] }); } },
   ]),
@@ -796,7 +797,7 @@ const F = SYN;
 F.overheat.cd = .15;   // used as a limiter, see boom()
 F.magma.frame = (a, s, dt) => {
   S.magmaT = (S.magmaT || 0) - dt; if (S.magmaT > 0) return; S.magmaT = .45;
-  for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) S.zones.push({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.ab * .35 });
+  for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) pushZone({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.ab * .35 });
 };
 F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { ignite: true, small: true, pierce: true }); };
 F.staticice.frame = (a, s, dt) => {
@@ -890,7 +891,7 @@ function freshState(sets, tsets, synRoll, bossOrder) {
     rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
-    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0 },
+    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0, area: 0 },
     ep: { red: {}, yellow: {}, blue: {}, green: {} },
     runSets: sets, typeSets: tsets, counts: {}, tcounts: {}, on: {}, mods: [], hk: {}, relics: [], relicOn: {},
     pendingRelic: 0, relicOffer: null,
@@ -944,6 +945,7 @@ function recalc() {
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
+  t.areaM = 1 + (S.st.area || 0) / 100;   // ability area
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
   t.maxHp += 3 * lv; t.dmgPct += 1.5 * lv; t.atkSpd += .75 * lv; t.armor += .4 * lv; t.regen += .08 * lv;
@@ -1017,7 +1019,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => d.syn[pairKey(a, b)] === 0 || d.syn[pairKey(a, b)] === 1);
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
+  Object.assign(S.st, { area: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;
@@ -1035,9 +1037,15 @@ function resumeRun(d) {
 
 // ===== combat core: damage, status effects, explosions, lightning, thorns, loot
 const NO = {};
-function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) h.a[n](h.a, h.s, a1, a2, a3); }
-const later = (t, f) => S.later.push({ t, f });
-function FX(o) { o.t = 0; if (S.fx.length < 420) S.fx.push(o); }
+// ability area: anything an ability or synergy does (explosions, nearby checks, zones and their visuals) is
+// scaled by tot.areaM while that ability's code runs. Weapon swings are never scaled.
+let AREA_ON = 0;
+const areaM = () => AREA_ON ? (tot.areaM || 1) : 1;
+function inArea(f) { AREA_ON++; try { return f(); } finally { AREA_ON--; } }
+function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) inArea(() => h.a[n](h.a, h.s, a1, a2, a3)); }
+const later = (t, f) => S.later.push({ t, f: AREA_ON ? () => inArea(f) : f });
+function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < 420) S.fx.push(o); }
+function pushZone(z) { z.r *= areaM(); S.zones.push(z); }
 function puff(x, y, col, n, spd, life) {
   for (let i = 0; i < n && S.pt.length < 520; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
 }
@@ -1118,8 +1126,9 @@ function chill(e, n) {
 function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
 const boomR = r => r * E('red', 'boomR') / 100;
-function eachNear(x, y, r, fn) { grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
+function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
 function boom(x, y, rad, amt, col, o) {
+  rad *= areaM();
   o = o || NO;
   FX({ k: 'boom', x, y, r: rad, life: .35, col });
   if (!o.small) { S.shake = Math.min(5, S.shake + 1.2); puff(x, y, col, 8, rad * 2.2, .4); if (rad > 80) hitstop(.035); }
@@ -2086,7 +2095,7 @@ function updMods(dt) {
     const a = h.a, cd = a.cd || a.v[h.s];
     let t = S.timers[a.id]; if (t === undefined) t = cd * .5;
     t -= dt * rate;
-    if (t <= 0) { t = cd; a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }
+    if (t <= 0) { t = cd; inArea(() => { a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }); }
     S.timers[a.id] = t;
   }
   const fs = S.hk.frame; if (fs) for (const h of fs) h.a.frame(h.a, h.s, dt);
@@ -2318,7 +2327,7 @@ function draw() {
   }
   for (const pi of S.pillars) { const a = Math.min(1, pi.life); c.fillStyle = `rgba(120,200,255,${.07 * a})`; c.beginPath(); c.arc(pi.x, pi.y, pi.r, 0, TAU); c.fill(); c.strokeStyle = `rgba(190,234,255,${.3 * a})`; c.lineWidth = 1.5; c.setLineDash([3, 5]); c.stroke(); c.setLineDash([]); }
   const halo = sv('halo'); if (halo) { c.strokeStyle = 'rgba(160,220,255,.3)'; c.lineWidth = 2; c.setLineDash([2, 7]); c.lineDashOffset = T * 10; c.beginPath(); c.arc(p.x, p.y, halo, 0, TAU); c.stroke(); c.setLineDash([]); }
-  const aura = sv('inferno'); if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
+  const aura = sv('inferno') ? sv('inferno', 'r') * (tot.areaM || 1) : 0; if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
   for (const ev of S.evs) drawEvent(c, ev, T);
   drawBossWorld(c, T);
   for (const t of S.tele) {
@@ -2760,7 +2769,7 @@ function statsHtml() {
   const passives = ORDER.map(c => { const ch = EPASS[c].filter(d => S.ep[c][d.k]).map(d => `${d.t} <b>${unit(E(c, d.k), d.u)}</b>`); return ch.map(x => `<span class="chip" style="--c:${COL[c]};white-space:normal">${x}</span>`).join(''); }).join('');
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
-    ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
+    ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
     ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round((1 - armRed(tot.armor)) * 100)}% damage)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * tot.thornPct / 100)} (pen ${fmt(tot.thornPen)})` : '—')}
@@ -2786,7 +2795,7 @@ function renderStart() {
   } else if (UI.stab === 'elements') body = `<h3>This run's element bonuses <span>· own 2 / 4 / 6 weapons of a colour</span></h3>${elemSetsHtml(pendingRun.sets)}<h3>Synergies <span>· mix elements: 2+2 minor, 4+2 major, 2+2+2 trio</span></h3>${synHtml(pendingRun.syn)}`;
   else if (UI.stab === 'types') body = `<h3>This run's weapon type bonuses <span>· own 1 / 3 / 6 of a type</span></h3>${typeSetsHtml(pendingRun.tsets)}`;
   else body = codexHtml();
-  showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}`,
+  showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}${CHANNEL === 'beta' ? ' · <b style="color:var(--gold)">BETA</b>' : ''}`,
     tabs: [['play', 'Play'], ['elements', 'Elements'], ['types', 'Weapons'], ['codex', `Codex ${seen}/${total}`]], tab: UI.stab, tabAct: 'stab', body }), 'start:' + UI.stab);
 }
 function codexHtml() {
@@ -2981,7 +2990,9 @@ function act(a, arg) {
 // ===== input, in-app updates, main loop, boot
 
 // ---- in-app updates: the installed app checks GitHub for a newer game and can install it in place
-const UPDATE_BASE = 'https://raw.githubusercontent.com/Darkz94/last-circle/main/';
+// the beta app (a separate install) is marked by its loader and updates from the 'beta' branch instead of 'main'
+let CHANNEL = 'main'; try { CHANNEL = localStorage.getItem('lcChannel') || 'main'; } catch (e) {}
+const UPDATE_BASE = `https://raw.githubusercontent.com/Darkz94/Last-circle/${CHANNEL}/`;
 const IS_APP = !!window.Capacitor;
 let updateInfo = null, updateChecked = false, updating = false;
 function checkUpdate() {
