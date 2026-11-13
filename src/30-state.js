@@ -124,11 +124,12 @@ const rollOffers = () => [0, 1, 2, 3].map(() => makeWeapon(pick(TYPE_KEYS), pick
 
 // ---- offline save: written at the start of every wave and on every menu
 const SAVE_KEY = 'lastCircleSave2';
-const packCard = c => ({ el: c.el ? { c: c.el.c, k: c.el.d.k } : null, pk: c.pr.k, pv: c.pv, rare: c.rare, locked: !!c.locked });
+const packCard = c => ({ combo: c.combo ? c.combo.map(x => ({ c: x.c, k: x.d.k })) : null, el: c.el ? { c: c.el.c, k: c.el.d.k } : null, pk: c.pr.k, pv: c.pv, rare: c.rare, locked: !!c.locked });
 function unpackCard(c) {
   const pr = c && PRIM.find(x => x.k === c.pk); if (!pr) return null;
   const el = c.el && EDEF[c.el.c] && EDEF[c.el.c][c.el.k] ? { c: c.el.c, d: EDEF[c.el.c][c.el.k] } : null;
-  return { el, pr, pv: c.pv, rare: c.rare, locked: c.locked };
+  const combo = c.combo ? c.combo.filter(x => EDEF[x.c] && EDEF[x.c][x.k]).map(x => ({ c: x.c, d: EDEF[x.c][x.k] })) : null;
+  return { el, combo: combo && combo.length > 1 ? combo : null, pr, pv: c.pv, rare: c.rare, locked: c.locked };
 }
 const packW = w => w && ({ type: w.type, el: w.el, tier: w.tier, afx: w.afx, evo: !!w.evo, fused: !!w.fused });
 function saveRun() {

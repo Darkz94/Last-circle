@@ -114,14 +114,16 @@ function renderLevelUp() {
   const cards = S.perkOffer.map((c, i) => {
     let main;
     if (c.el) { const { c: el, d } = c.el, cur = E(el, d.k), next = Math.min(d.cap, cur + d.v); main = `<div class="el">${ELEM[el]}</div><div class="big">+${unit(d.v, d.u)} ${d.t}</div><div class="hint">${unit(cur, d.u)} → ${unit(next, d.u)}${next >= d.cap ? ' · MAXED' : ` · max ${unit(d.cap, d.u)}`}</div>`; }
+    else if (c.combo) main = `<div class="el" style="color:var(--gold)">${c.combo.length === 3 ? 'Trio' : 'Duo'} upgrade</div>` + c.combo.map(({ c: el, d }) => { const cur = E(el, d.k), next = Math.min(d.cap, cur + d.v);
+      return `<div style="margin-top:6px;border-left:3px solid ${COL[el]};padding-left:7px"><b style="color:${COL[el]}">${ELEM[el]}</b> +${unit(d.v, d.u)} ${d.t}<div class="hint">${unit(cur, d.u)} → ${unit(next, d.u)}</div></div>`; }).join('');
     else main = `<div class="el" style="color:var(--dim)">Stat</div><div class="big">${c.pr.t(c.pv)}</div>`;
-    return `<div class="card flat ${c.locked ? 'kept' : ''}" style="--c:${c.el ? COL[c.el.c] : '#666'}">${main}
-      ${c.el ? `<div class="sec"><small>Bonus stat ${c.rare ? '<span class="rare">RARE</span>' : ''}</small>${c.pr.t(c.pv)}</div>` : ''}
+    return `<div class="card flat ${c.locked ? 'kept' : ''}" style="--c:${c.el ? COL[c.el.c] : c.combo ? 'var(--gold)' : '#666'}">${main}
+      ${c.el || c.combo ? `<div class="sec"><small>Bonus stat ${c.rare ? '<span class="rare">RARE</span>' : ''}</small>${c.pr.t(c.pv)}</div>` : ''}
       <div class="row" style="margin-top:auto"><button class="btn go wide" data-act="perk:${i}">Take</button><button class="btn ${c.locked ? 'on' : ''}" data-act="lvlock:${i}">${c.locked ? '🔒 Kept' : 'Keep'}</button></div></div>`;
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.4 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 3rd level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.4 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();

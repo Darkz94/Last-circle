@@ -37,10 +37,10 @@ const SYN_PAIRS = {
   ]),
 };
 const SYN_TRIOS = {
-  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 7.5s a storm of fire, ice and lightning hits every enemy in the circle' }])[0],
+  'red+yellow+blue': synDef(['red', 'yellow', 'blue'], [{ id: 'cataclysm', name: 'Cataclysm', minor: '', major: 'Every 7.5s a huge storm of fire, ice and lightning hits every enemy in the circle' }])[0],
   'red+yellow+green': synDef(['red', 'yellow', 'green'], [{ id: 'volcano', name: 'Volcano', minor: '', major: 'Every 6s a vent erupts near you, raining burning, electrified rocks on enemies' }])[0],
   'red+blue+green': synDef(['red', 'blue', 'green'], [{ id: 'tectonic', name: 'Tectonic', minor: '', major: 'Every 2.3s a quake ripples out from you, alternately igniting and freezing' }])[0],
-  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: faster, and every hit chills and shocks hard' }])[0],
+  'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [{ id: 'livingstorm', name: 'Living Storm', minor: '', major: 'Golems become storm elementals: double HP, 30% faster, +2 golems per summon, and every hit chills, can freeze and calls a full-power strike' }])[0],
 };
 const SYN_COUNT = 12 + 4;
 const TRIO_NOTE = 'Also switches on the minor synergy of each pair inside it';
@@ -95,8 +95,8 @@ F.cataclysm.fire = () => {
   sfx('boss'); S.shake = Math.min(6, S.shake + 4); hitstop(.05);
   FX({ k: 'boom', x: 0, y: 0, r: R, life: .7, col: '#ffffff' });
   const list = inArena();
-  for (const e of list) { dmg(e, S.ab * 1.5, { col: '#ffffff' }); burn(e, burnFrom(S.ab * 1.5)); chill(e, 2); }
-  shuffle(list).slice(0, 12).forEach((e, i) => later(i * .05, () => bolt(e, 1, { noChain: true })));
+  for (const e of list) { dmg(e, S.ab * 3, { col: '#ffffff' }); burn(e, burnFrom(S.ab * 3)); chill(e, 2.5); }
+  shuffle(list).slice(0, 20).forEach((e, i) => later(i * .05, () => bolt(e, 1.5, { noChain: true, full: true })));
 };
 F.volcano.cd = 6;
 F.volcano.fire = () => {
@@ -109,12 +109,12 @@ F.volcano.frame = (a, s, dt) => {
     v.life -= dt; v.tick -= dt;
     if (S.pt.length < 460) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
     if (v.tick > 0) continue;
-    v.tick = .35;
+    v.tick = .28;
     const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240));
     if (!t) continue;
     const x = t.x, y = t.y;
     FX({ k: 'warn', x, y, r: 34, life: .3, col: FIRE });
-    later(.3, () => { boom(x, y, 34, S.ab * .8 + tot.maxHp * .05, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 40); if (e2) bolt(e2, .4, { silent: true }); });
+    later(.3, () => { boom(x, y, 40, S.ab * 1.6 + tot.maxHp * .08, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 44); if (e2) bolt(e2, .9, { silent: true, full: true }); });
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };
@@ -122,8 +122,8 @@ F.tectonic.cd = 2.3;
 F.tectonic.fire = () => {
   const p = S.p, hot = (S.tecN = (S.tecN || 0) + 1) % 2 === 1, col = hot ? FIRE : ICE;
   sfx('rumble', .8);
-  FX({ k: 'boom', x: p.x, y: p.y, r: 140, life: .5, col });
+  FX({ k: 'boom', x: p.x, y: p.y, r: 165, life: .5, col });
   for (let i = 0; i < 8; i++) { const an = i / 8 * TAU + rnd(-.2, .2), l = rnd(90, 140); FX({ k: 'crack', x1: p.x, y1: p.y, x2: p.x + Math.cos(an) * l, y2: p.y + Math.sin(an) * l, life: .6 }); }
-  eachNear(p.x, p.y, 140, e => { dmg(e, S.ab * .8 + tot.maxHp * .08, { col }); if (hot) burn(e, burnFrom(S.ab)); else { chill(e, 2); if (Math.random() < .3) freeze(e); } });
+  eachNear(p.x, p.y, 165, e => { dmg(e, S.ab * 1.6 + tot.maxHp * .12, { col }); if (hot) burn(e, burnFrom(S.ab * 2)); else { chill(e, 2.5); if (Math.random() < .4) freeze(e); } });
 };
-F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2); bolt(e, .9, { noChain: true }); };
+F.livingstorm.gHit = (a, s, g, e) => { if (e.dead) return; chill(e, 2.5); if (Math.random() < .2) freeze(e); bolt(e, 1.5, { noChain: true, full: true }); };

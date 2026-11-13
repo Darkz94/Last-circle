@@ -149,9 +149,18 @@ function statCard(pr) {
 }
 function rollLevelCards() {
   const cards = [], used = new Set();
-  for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); if (lc.el) used.add(lc.el.c + lc.el.d.k); }
+  for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
   const stats = shuffle([...PRIM]);
+  // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
+  const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
+  if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {
+    while (cards.length < 3) {
+      const parts = combo.map(c => { const f = eligible(c).filter(d => !used.has(c + d.k)); if (!f.length) return null; const d = pick(f); used.add(c + d.k); return { c, d }; }).filter(Boolean);
+      if (parts.length < 2) break;
+      cards.push({ combo: parts, el: null, ...statCard(stats[cards.length]) });
+    }
+  }
   while (cards.length < 3) {
     const free = c => eligible(c).filter(d => !used.has(c + d.k));
     const opts = ORDER.filter(c => free(c).length).map(c => [c, (S.counts[c] || 0) * 1.5 + .5]);
@@ -166,7 +175,7 @@ function choosePerk(i) {
   if (!c) return;
   sfx('click');
   S.st[c.pr.k] += c.pv;
-  if (c.el) S.ep[c.el.c][c.el.d.k] = (S.ep[c.el.c][c.el.d.k] || 0) + c.el.d.v;
+  for (const x of c.combo || (c.el ? [c.el] : [])) S.ep[x.c][x.d.k] = (S.ep[x.c][x.d.k] || 0) + x.d.v;
   S.lockedCards = S.perkOffer.filter((x, j) => j !== i && x.locked).map(x => ({ ...x, locked: false }));
   S.perkOffer = null;
   S.pendingLv--;

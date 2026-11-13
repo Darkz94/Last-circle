@@ -80,7 +80,7 @@ function updWeapons(dt) {
     if (w.cd <= 0) w.cd = weaponAttack(w) ? TYPES[w.type].cd * rnd(.95, 1.05) : .05;
     if (w.el === 'green') {
       w.sumT -= dt * E('green', 'srate') / 100;
-      if (w.sumT <= 0) { w.sumT = SUM_CD; summonGolems(w.tier + (w.evo ? 1 : 0), p.x, p.y, 1 + sv('brood') + (rel('twin') ? 1 : 0)); }
+      if (w.sumT <= 0) { w.sumT = SUM_CD; summonGolems(w.tier + (w.evo ? 1 : 0), p.x, p.y, 1 + sv('brood') + (rel('twin') ? 1 : 0) + (syn('livingstorm') >= 0 ? 2 : 0)); }
     }
   }
 }
@@ -90,7 +90,7 @@ function updWeapons(dt) {
 const bestEarthTier = () => S.weapons.reduce((m, w) => w.el === 'green' ? Math.max(m, w.tier + (w.evo ? 1 : 0)) : m, 0);
 function golemHp(tier, mult) {
   const base = tier > 3 ? SUMHP[3] * 1.5 : SUMHP[tier];
-  return (base * (1 + S.wave * .045) + tot.maxHp * .1 * tot.bond) * (E('green', 'shp') + sv('bark')) / 100 * (mult || 1);
+  return (base * (1 + S.wave * .045) + tot.maxHp * .1 * tot.bond) * (E('green', 'shp') + sv('bark')) / 100 * (mult || 1) * (syn('livingstorm') >= 0 ? 2 : 1);
 }
 function summonGolems(tier, x, y, n, mult) {
   const hp = golemHp(tier, mult), life = 8 * E('green', 'slife') / 100 * (mult > 1 ? 2 : 1), cap = E('green', 'scap');

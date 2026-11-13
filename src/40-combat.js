@@ -125,8 +125,8 @@ function addPillar(x, y, life, r) { if (S.pillars.length >= 6) S.pillars.shift()
 
 // ---- lightning: every strike (from weapon hits, abilities or synergies) is a normal hit worth
 // ability power x its multiplier x lightning damage %. Crits multiply it, armor reduces it.
-function lightningDmg(e, mult, crit) {
-  let m = E('yellow', 'strike') / 100;
+function lightningDmg(e, mult, crit, full) {
+  let m = full ? 1 : E('yellow', 'strike') / 100;   // trio synergies hit at full ability power
   const cd = sv('conductor');
   if (cd && (e.stun > 0 || isCold(e))) m *= 1 + cd / 100;
   if (syn('plasma') === 1 && e.burnT > 0) m *= 2;
@@ -139,7 +139,7 @@ function bolt(e, mult, o) {
   if (!o.silent) { FX(o.from ? makeBolt(o.from.x, o.from.y, e.x, e.y) : makeBolt(e.x + rnd(-30, 30), e.y - 260, e.x, e.y)); sfx('zap'); }
   S.rs.strikes++;
   const crit = (syn('supercon') === 1 && e.frozen > 0) || Math.random() * 100 < tot.crit + E('yellow', 'lcrit');
-  const pct = !!o.pct, d = lightningDmg(e, mult, crit);
+  const pct = !!o.pct, d = lightningDmg(e, mult, crit, o.full);
   if (d > 0) dmg(e, d, { col: COL.yellow, src: 'lightning', crit });
   // Execute: a strike finishes off a weakened non-boss outright, with no on-kill effects
   const ex = sv('smite');
