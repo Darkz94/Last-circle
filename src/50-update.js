@@ -11,7 +11,7 @@ function startWave() {
   for (const k of WAVE_LISTS) S[k] = [];
   S.timers = {}; S.colossus = null; S.colT = 1; S.surge = { n: 0, t: 0 }; S.beam = null;
   S.arenaR = R; S.shrink = false; S.silence = 0; S.synNote = null;
-  S.phoenixUsed = false; S.windUsed = false; S.blood = 0; S.collectT = null; S.hitstop = 0; S.hurtFlash = 0;
+  S.phoenixUsed = false; S.graceUsed = false; S.windUsed = false; S.blood = 0; S.collectT = null; S.hitstop = 0; S.hurtFlash = 0;
   for (const w of S.weapons) { w.sumT = 1; w.cd = rnd(0, .3); }
   const boss = S.wave % 10 === 0;
   S.toSpawn = Math.round(waveCount(S.wave) * (boss ? .55 : 1));
@@ -99,6 +99,7 @@ function step(dt) {
 }
 
 function endWave() {
+  if (sv('bark')) S.grow.hp++; if (sv('over')) S.grow.arm++;   // Ironbark / Stoneheart grow every cleared wave
   const lost = { gold: 0, xp: 0 };
   for (const d of S.drops) lost[d.k] += d.v;
   S.lastLost = lost.gold >= 1 || lost.xp >= 1 ? { gold: Math.floor(lost.gold), xp: Math.floor(lost.xp) } : null;

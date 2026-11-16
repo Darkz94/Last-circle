@@ -86,7 +86,7 @@ function updEnemies(dt) {
       const bx = e.x - b.x, by = e.y - b.y, bd = Math.hypot(bx, by) || 1, mn = e.r + b.r;
       if (bd < mn) { e.x = b.x + bx / bd * mn; e.y = b.y + by / bd * mn; }
     }
-    if (tgt !== p) { if (!held && !(e.confT > 0) && e.dmg > 0 && d < e.r + tgt.r && e.atkCd <= 0) { e.atkCd = .9; tgt.hp -= e.dmg * armRed(tot.armor); } }
+    if (tgt !== p) { if (!held && !(e.confT > 0) && e.dmg > 0 && d < e.r + tgt.r && e.atkCd <= 0) { e.atkCd = .9; tgt.hp -= e.dmg * playerArm(tot.armor); } }
     else if (!held && !(e.confT > 0) && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
   }
   // keep enemies from stacking, and let fire jump between touching enemies

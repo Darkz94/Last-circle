@@ -9,13 +9,14 @@ const bestWave = () => +LS.get('lastCircleBest3', 0) || 0;
 function saveBest() { if (S.wave > bestWave()) LS.set('lastCircleBest3', S.wave); }
 
 // weighted stat rolls: a weapon type's favoured stats are 3x as likely (swords have no favourites)
-function rollStats(type, n) {
-  const fav = (type && TYPES[type].fav) || [], pool = STAT_KEYS.map(k => [k, fav.includes(k) ? 3 : 1]), out = [];
+const EARTH_FAV = ['armor', 'maxHp', 'regen', 'leech'];   // Earth weapons lean towards defensive stats
+function rollStats(type, n, el) {
+  const fav = (type && TYPES[type].fav) || [], pool = STAT_KEYS.map(k => [k, (fav.includes(k) ? 3 : 1) * (el === 'green' && EARTH_FAV.includes(k) ? 3 : 1)]), out = [];
   while (out.length < n && pool.length) { let r = Math.random() * pool.reduce((a, p) => a + p[1], 0), i = 0; while ((r -= pool[i][1]) > 0) i++; out.push(pool[i][0]); pool.splice(i, 1); }
   return out;
 }
-const rollAffixes = type => rollStats(type, 2);
-const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes(type) });
+const rollAffixes = (type, el) => rollStats(type, 2, el);
+const makeWeapon = (type, el, tier) => ({ type, el, tier, afx: rollAffixes(type, el) });
 function rollRun() {
   const sets = {}, tsets = {};
   for (const c of ORDER) sets[c] = shuffle([...ABIL[c]]).slice(0, 3);
@@ -27,6 +28,7 @@ function rollRun() {
 const WAVE_LISTS = ['haz', 'eorbs', 'vents', 'enemies', 'golems', 'projs', 'flames', 'pillars', 'zones', 'rings', 'orbs', 'rods', 'sprites', 'spirits', 'wizards', 'walls', 'evs', 'tele', 'sparks', 'mists', 'crystals', 'totems', 'later', 'fx', 'pt', 'texts', 'drops', 'dying'];
 function freshState(sets, tsets, synRoll, bossOrder) {
   const s = {
+    grow: { hp: 0, arm: 0 },
     rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
@@ -84,10 +86,12 @@ function recalc() {
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
+  t.maxHp += E('green', 'ehp'); t.armor += E('green', 'earmor'); t.regen += E('green', 'eregen');   // Earth level-ups
+  t.speed += 3 * (S.counts.yellow || 0);   // Lightning: each Lightning weapon adds 3% move speed
   t.areaM = 1 + Math.min(AREA_CAP, S.st.area || 0) / 100;   // ability area, capped
   t.armor += 2 * (S.tcounts.shield || 0);   // Guard: every shield adds armor
   const lv = Math.max(0, S.level - 1);        // every level: a little of everything, so focused builds don't neglect defence
-  t.maxHp += 3 * lv; t.dmgPct += 1.5 * lv; t.atkSpd += .75 * lv; t.armor += .4 * lv; t.regen += .08 * lv;
+  t.maxHp += 3 * lv; t.dmgPct += 1.5 * lv; t.atkSpd += .75 * lv; t.armor += .6 * lv; t.regen += .08 * lv;
   if (S.hk.stats) { for (const m of S.hk.stats) if (!m.a.late) m.a.stats(m.a, m.s, t); for (const m of S.hk.stats) if (m.a.late) m.a.stats(m.a, m.s, t); }
   for (const k in tot) delete tot[k];
   Object.assign(tot, t);
@@ -98,6 +102,7 @@ function recalc() {
   tot.pickR = 48 * (1 + tot.pickup / 100);
   tot.bond = E('green', 'bond') / 100;
   tot.thornPen = E('green', 'thornPen');
+  tot.thornFlat += tot.maxHp * (tot.thornFromHp || 0) + tot.regen * (tot.thornFromRegen || 0);   // Bloodstone, Living Stone
   S.p.hp = Math.min(S.p.hp, tot.maxHp);
   renderSlots();
 }
@@ -139,7 +144,7 @@ function saveRun() {
     v: 2, st: S.st, ep: S.ep, tsets: S.typeSets, sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(a => a.id)])),
     level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
     weapons: S.weapons.map(packW), relics: S.relics, syn: S.synRoll, bosses: S.bossOrder, pendingRelic: S.pendingRelic, relicOffer: S.relicOffer,
-    rs: S.rs, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
+    rs: S.rs, grow: S.grow, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
     lvRerollBuys: S.lvRerollBuys, lvRerolls: S.lvRerolls, shopLocked: S.shopLocked, lockedOffers: S.lockedOffers && S.lockedOffers.map(packW), shopWave: S.shopWave,
     perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(packCard) : null, lockedCards: S.lockedCards.map(packCard),
   });
@@ -158,7 +163,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => [0, 1, 2].includes(d.syn[pairKey(a, b)])) && TRIOS.every(t => [0, 1].includes(d.syn['t:' + t.join('+')]));
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, { area: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs);
+  Object.assign(S.st, { area: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;

@@ -107,13 +107,13 @@ function barrierAbsorb(d) {
 F.cycle.hit = (a, s, w, e, d) => {
   if (e.dead) return;
   const st = e.cyc = ((e.cyc || 0) + 1) % 3;
-  if (st === 1) burn(e, burnFrom(d * .5));
+  if (st === 1) burn(e, burnFrom(d * .25));
   else if (st === 2) bolt(e, .5, { noChain: true, full: true });
   else {
     chill(e, 2);
     if (S.time < (e.novaCd || 0)) return;
-    e.novaCd = S.time + 1;
-    boom(e.x, e.y, 85, S.ab * 2.5, '#ffffff', { ignite: true, chill: 1, src: 'explosion' });
+    e.novaCd = S.time + 2;
+    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { ignite: true, chill: 1, src: 'explosion' });
     if (!e.dead && !e.boss && Math.random() < .5) freeze(e);
     shuffle(S.enemies.filter(o => !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140)).slice(0, 3).forEach(o => bolt(o, .8, { noChain: true, full: true }));
   }
@@ -160,7 +160,7 @@ F.seasons.frame = (a, s, dt) => {
 const summerBurn = () => syn('seasons') >= 0 && S.summer ? 2 : 1;
 
 // ---- Storm Totems (Lightning + Ice + Earth): planted totems draw enemies and pulse chill + lightning
-F.totems.cd = 8;
+F.totems.cd = 6;
 F.totems.fire = () => {
   if (S.totems.length >= 3) S.totems.shift();
   const hp = tot.maxHp * 1.5;
@@ -170,7 +170,7 @@ F.totems.fire = () => {
 F.totems.frame = (a, s, dt) => {
   for (const k of S.totems) {
     k.t -= dt;
-    if (k.t <= 0) { k.t = 1; FX({ k: 'ring', x: k.x, y: k.y, r: 110, life: .3, col: ICE }); eachNear(k.x, k.y, 110, e => chill(e, 1.5)); const tg = nearest(k.x, k.y, 150); if (tg) bolt(tg, 1, { from: k, noChain: true, full: true }); }
+    if (k.t <= 0) { k.t = 1; FX({ k: 'ring', x: k.x, y: k.y, r: 110, life: .3, col: ICE }); eachNear(k.x, k.y, 110, e => chill(e, 1.5)); const tg = nearest(k.x, k.y, 150); if (tg) bolt(tg, 1.6, { from: k, noChain: true, full: true }); }
   }
   const gone = S.totems.filter(k => k.hp <= 0); for (const k of gone) puff(k.x, k.y, '#bfe6ff', 10, 120, .4);
   S.totems = S.totems.filter(k => k.hp > 0);
@@ -207,4 +207,14 @@ function drawSynWorld(c, T) {
   }
   for (const k of S.sparks) { c.fillStyle = '#ffd27a'; c.beginPath(); c.arc(k.x, k.y, 3, 0, TAU); c.fill(); }
   if (S.shield > 0 && syn('barrier') >= 0) { c.strokeStyle = `rgba(160,220,255,${.35 + .5 * S.shield / (S.shieldMax || 1)})`; c.lineWidth = 3; c.beginPath(); c.arc(S.p.x, S.p.y, PR + 8, 0, TAU); c.stroke(); }
+}
+
+// ---- golem synergies bring their own golems (Earth is no longer the summoner; summons are spread out)
+for (const id of ['magma', 'magnetite', 'permafrost', 'glacier', 'livingstorm']) {
+  const old = F[id].frame;
+  F[id].frame = (a, s, dt) => {
+    S.synSumT = (S.synSumT || 0) - dt;
+    if (S.synSumT <= 0 && S.phase === 'fight') { S.synSumT = id === 'livingstorm' ? 4 : 5; summonGolems(Math.max(1, bestEarthTier()), S.p.x, S.p.y, (id === 'livingstorm' ? 4 : 2) + (s && id !== 'livingstorm' ? 1 : 0) + (rel('twin') ? 1 : 0)); }
+    if (old) old(a, s, dt);
+  };
 }

@@ -22,9 +22,9 @@ const coin = n => `<span class="gc">●</span> ${n}`;
 function elemLine(w) {
   const g = (c, k) => S ? E(c, k) : EDEF[c][k].base, t = w.tier;
   if (w.el === 'red') return w.evo ? 'Always ignites · 25% chance to explode' : `${fmt(g('red', 'ign'))}% chance to ignite`;
-  if (w.el === 'yellow') return `Attacks 40% faster · ${fmt(g('yellow', 'strikeCh'))}% to call a lightning strike${w.evo ? ' · 35% extra strike chance' : ''}`;
+  if (w.el === 'yellow') return `Attacks 40% faster · +3% move speed · ${fmt(g('yellow', 'strikeCh'))}% to call a lightning strike${w.evo ? ' · 35% extra strike chance' : ''}`;
   if (w.el === 'blue') return `${fmt(g('blue', 'chillCh'))}% chance to chill (+${(t >= 2 ? 2 : 1) + (w.evo ? 1 : 0)}); 4 freezes${w.evo ? ' · 12% instant freeze' : ''}`;
-  return `Golem every ${SUM_CD}s · +${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
+  return `+${THF[t] * (w.evo ? 2 : 1)} thorns · +${EHP[t] * (w.evo ? 2 : 1)} max HP${w.evo ? ' · hits add 3% of max HP' : ''}`;
 }
 function weaponCard(w, act, foot) {
   const T = TYPES[w.type], d = Math.round(T.dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) * (w.el === 'yellow' ? YEL_DMG : 1));
@@ -33,10 +33,17 @@ function weaponCard(w, act, foot) {
     <div class="ln"><b style="color:var(--gold)">${T.role}</b> · ${d} dmg · ${T.how}</div><div class="ln hint">${T.trait}</div><div class="ln">${elemLine(w)}</div>
     ${w.afx.map(k => `<div class="ln af">◆ ${statText(k, afxVal(k, w))}</div>`).join('')}${foot || ''}</button>`;
 }
+// what each element is for
+const ELEM_ID = {
+  red: 'Damage over time: spread burns to everything, then cash them in with explosions',
+  yellow: 'Angelic smiting: fast, critical, chaining lightning, with speed and saving graces',
+  blue: 'Battlefield control: slow, freeze, wall off and turn enemies against each other',
+  green: 'Defence into offence: max HP, armor and thorns become your damage',
+};
 function elemSetsHtml(sets, counts) {
   return ORDER.map(c => {
     const n = (counts && counts[c]) || 0;
-    return `<div class="rs ${counts && n ? 'own' : ''}" style="--c:${COL[c]}"><div class="h"><span>${ELEM[c]}</span><span>${counts ? n + ' / 6' : ''}</span></div>
+    return `<div class="rs ${counts && n ? 'own' : ''}" style="--c:${COL[c]}"><div class="h"><span>${ELEM[c]}</span><span>${counts ? n + ' / 6' : ''}</span></div><div class="hint" style="margin:-2px 0 6px">${ELEM_ID[c]}</div>
       ${sets[c].map((a, i) => `<div class="e ${n >= ETHRESH[i] ? 'on' : ''}"><span class="pips">${'◆'.repeat(i + 1)}${'◇'.repeat(2 - i)}</span><b>(${ETHRESH[i]}) ${a.name}</b><br>${a.d(a, i)}</div>`).join('')}</div>`;
   }).join('');
 }
@@ -71,7 +78,7 @@ function statsHtml() {
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
     ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
-    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round((1 - armRed(tot.armor)) * 100)}% damage)`)}${row('Penetration', fmt(tot.pen))}
+    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max 80%)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * tot.thornPct / 100)} (pen ${fmt(tot.thornPen)})` : '—')}
   </div>
@@ -101,21 +108,23 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 21,
-  notes: ['10 new synergies: a third option for every pair and a second option for every trio',
-    'Trios now pick the option whose theme best matches the pairs rolled that run',
-    'Inferno Aura applies normal burn stacks, with a new pulse-speed upgrade',
-    'Combustion detonates enemies that are already at max burn stacks',
-    'Ability area is capped at +150%'],
-  new: ['sparks', 'steam2', 'starfall', 'crystal', 'lodestone', 'barrier', 'cycle', 'forge', 'seasons', 'totems'],
-  changed: ['inferno', 'combust'],
+  v: 22,
+  notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
+    'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
+    'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
+    'Ice: Ice Prison traps crowds, Mesmerize turns the toughest enemy into a thrall',
+    'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
+    'Golems now come from Stone Golems, Colossus and the golem synergies',
+    'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
+  new: ['grace', 'wings', 'prison', 'mesmer', 'golems'],
+  changed: ['blast', 'phoenix', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
 };
-const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind === 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(id) ? ' <span class="ptag chg">CHANGED</span>' : '';
+const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind !== 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(kind === 'syn' ? 'syn:' + id : id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {
   let h = CHANNEL === 'beta'
     ? `<div class="note gold"><b>Beta · what's new in v${PATCH.v}</b><ul style="margin:6px 0 0 18px;padding:0">${PATCH.notes.map(n => `<li>${n}</li>`).join('')}</ul><span class="hint">Everything is unlocked in the beta. Look for the NEW and CHANGED tags below.</span></div>`
     : '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
-  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3><p class="hint" style="margin:-4px 0 8px">${ELEM_ID[c]}</p>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   const allSyn = Object.values(SYN);
   h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b>${patchTag(a.id, 'syn')} <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${a.els.length === 3 ? synText(a, 1) : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
   h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b>${patchTag(r.id)}<br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
@@ -137,7 +146,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 3rd level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.4 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 3rd level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();

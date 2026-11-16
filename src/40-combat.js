@@ -186,23 +186,25 @@ function makeBolt(x1, y1, x2, y2) {
 
 // ---- thorns (Earth only): every enemy attack is punished, even ones you're invulnerable to.
 // flat thorns x thorn multiplier (+ Retribution's share of the hit), reduced by enemy armor (as a %) after thorn penetration.
-function thorns(e, bash) {
+// k scales the hit: 1 (or undefined) when an enemy hits you, a fraction for Thornstrike weapon hits
+function thorns(e, k) {
   if (e.dead) return;
   const rt = sv('retri');
   if (tot.thornFlat <= 0 && !rt) return;
-  let raw = tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100;
+  let raw = (tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100) * (k || 1);
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
   const td = dmg(e, Math.max(1, raw * armRed(Math.max(0, e.armor - tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns' });
   if (tot.leech) heal(td * tot.leech / 100);
+  if (sv('leech')) heal(td * sv('leech') / 100);   // Lifestone
   if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.ab)));
   if (!e.dead && syn('permafrost') >= 0) chill(e, 2);
-  sfx('thorn', bash ? .5 : 1);
+  sfx('thorn', k ? .5 : 1);
   FX({ k: 'spikes', x: S.p.x, y: S.p.y, dir: Math.atan2(e.y - S.p.y, e.x - S.p.x), life: .25 });
 }
 function hurt(d, src) {
   const p = S.p;
   if (p.inv > 0) return;
-  d = Math.max(1, d * armRed(tot.armor + ((S.buff && S.buff.armor) || 0)));
+  d = Math.max(1, d * playerArm(tot.armor + ((S.buff && S.buff.armor) || 0)));
   if (rel('hide')) d *= .85;
   d = barrierAbsorb(d);
   if (d <= 0) { p.inv = .25; return; }

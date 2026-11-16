@@ -24,7 +24,7 @@ const SYN_PAIRS = {
     { id: 'steam2', name: 'Blinding Steam', tags: ['control', 'burn'], minor: 'Burning a chilled enemy leaves a steam cloud: enemies inside wander confused and take 15% more damage', major: 'Bigger, longer clouds, and confused enemies attack each other' },
   ]),
   'red+green': synDef(['red', 'green'], [
-    { id: 'magma', name: 'Magma', tags: ['golems', 'burn'], minor: 'Golems leave pools of lava as they walk', major: 'Golems erupt in fire when they crumble' },
+    { id: 'magma', name: 'Magma', tags: ['golems', 'burn'], minor: 'Raises 2 magma golems every 5s; golems leave pools of lava as they walk', major: 'Golems erupt in fire when they crumble' },
     { id: 'molten', name: 'Molten Thorns', tags: ['thorns', 'burn'], minor: 'Thorns set attackers on fire', major: 'Thorns deal double damage to burning enemies' },
     { id: 'starfall', name: 'Starfall', tags: ['explosions', 'burn'], minor: 'Every 6s a falling star slams into the thickest crowd of enemies', major: '3 falling stars, each leaving a pool of lava' },
   ]),
@@ -34,13 +34,13 @@ const SYN_PAIRS = {
     { id: 'crystal', name: 'Storm Crystals', tags: ['turrets', 'strikes'], minor: 'Frozen enemies that die leave an ice crystal that zaps nearby enemies for 4s', major: 'Crystals last 8s and their zaps chill' },
   ]),
   'yellow+green': synDef(['yellow', 'green'], [
-    { id: 'magnetite', name: 'Magnetite', tags: ['golems', 'strikes'], minor: 'Golems are lightning rods: each one strikes a nearby enemy every 1.5s', major: 'Golems call down 3 strikes when they crumble' },
+    { id: 'magnetite', name: 'Magnetite', tags: ['golems', 'strikes'], minor: 'Raises 2 golems every 5s; golems are lightning rods that strike a nearby enemy every 1.5s', major: 'Golems call down 3 strikes when they crumble' },
     { id: 'grounded', name: 'Grounded', tags: ['thorns', 'strikes', 'defense'], minor: 'When you are hit, a bolt strikes the attacker', major: 'That bolt also deals 3x your armor, ignoring armor' },
     { id: 'lodestone', name: 'Lodestone', tags: ['control', 'strikes'], minor: 'Every 5s a magnetic pulse drags nearby enemies into a clump, then lightning hits the clump', major: 'A wider pull, and the clump is stunned' },
   ]),
   'blue+green': synDef(['blue', 'green'], [
-    { id: 'permafrost', name: 'Permafrost', tags: ['thorns', 'golems', 'control'], minor: 'Thorns chill attackers and golems chill what they hit', major: 'Golem hits have 25% chance to freeze' },
-    { id: 'glacier', name: 'Glacier Golems', tags: ['golems', 'control'], minor: 'Golems become ice giants that chill everything near them', major: 'Golems shatter on death for 15% of your max HP' },
+    { id: 'permafrost', name: 'Permafrost', tags: ['thorns', 'golems', 'control'], minor: 'Raises 2 golems every 5s; thorns chill attackers and golems chill what they hit', major: 'Golem hits have 25% chance to freeze' },
+    { id: 'glacier', name: 'Glacier Golems', tags: ['golems', 'control'], minor: 'Raises 2 ice golems every 5s that chill everything near them', major: 'Golems shatter on death for 15% of your max HP' },
     { id: 'barrier', name: 'Frost Barrier', tags: ['defense', 'control'], minor: 'A frost shield absorbs damage (10% of max HP) and recharges after 5s without being hit', major: 'A 20% shield that bursts into freezing shards when it breaks' },
   ]),
 };
@@ -58,8 +58,8 @@ const SYN_TRIO_OPTS = {
     { id: 'seasons', name: 'Seasons', tags: ['burn', 'control', 'defense'], minor: '', major: 'The arena turns summer and winter every 10s: summer doubles burns and scorches enemies, winter chills everything and freezes far more' },
   ]),
   'yellow+blue+green': synDef(['yellow', 'blue', 'green'], [
-    { id: 'livingstorm', name: 'Living Storm', tags: ['golems', 'strikes', 'control'], minor: '', major: 'Golems become storm elementals: double HP, 30% faster, +2 golems per summon, and every hit chills, can freeze and calls a full-power strike' },
-    { id: 'totems', name: 'Storm Totems', tags: ['turrets', 'control', 'strikes', 'defense'], minor: '', major: 'Every 8s you plant a storm totem (up to 3) that draws enemies onto itself and pulses chill and lightning' },
+    { id: 'livingstorm', name: 'Living Storm', tags: ['golems', 'strikes', 'control'], minor: '', major: 'Raises 4 storm golems every 4s: double HP, 30% faster, and every hit chills, can freeze and calls a full-power strike' },
+    { id: 'totems', name: 'Storm Totems', tags: ['turrets', 'control', 'strikes', 'defense'], minor: '', major: 'Every 6s you plant a storm totem (up to 3) that draws enemies onto itself and pulses chill and lightning' },
   ]),
 };
 // the trio a run uses: chosen when the run is rolled (key 't:<trio>' in the roll)

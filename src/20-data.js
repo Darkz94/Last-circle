@@ -7,7 +7,7 @@ const TYPES = {
   sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Versatile: +5% damage for each different weapon type you own', fav: [] },
   axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
   spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
-  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor, always knocks back; Earth shields bash with your thorns',
+  shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor and always knocks back',
             fav: ['armor', 'maxHp', 'regen', 'knock', 'stun'] },
 };
 const TYPE_KEYS = Object.keys(TYPES);
@@ -65,13 +65,14 @@ const PRIM = [
 const SUMHP = [22, 42, 74, 140];      // golem base HP by Earth weapon tier
 const SUM_CD = 4;                     // seconds between golem summons per Earth weapon
 const THF = [8, 14, 22, 36];           // flat thorn damage per Earth weapon, by tier
-const EHP = [5, 9, 13, 20];        // max HP per Earth weapon, by tier
+const EHP = [10, 16, 24, 36];   // Earth weapons: max HP by tier        // max HP per Earth weapon, by tier
 const YEL_SPD = 1.4, YEL_DMG = .75;   // Lightning weapons: faster, softer
 const GOLD_TO_XP = .5;
 
 // ---- element passives: the main level-up choice. Small, capped, and leave the pool once maxed.
 //      v = per pick, base = starting value, cap = maximum, req = only offered if the run has one of these abilities
 const BOOMERS = ['blast', 'fireball', 'bombs', 'meteor', 'pyre', 'sprite'];
+const GOLEMERS = ['golems', 'treant'];   // golem level-ups only appear if the run can roll a golem ability
 const EPASS = {
   red: [
     { k: 'ign',     v: 8,   base: 14,  cap: 100, u: '%', t: 'ignite chance on Fire hits' },
@@ -102,12 +103,15 @@ const EPASS = {
     { k: 'lstun',  v: 4,  base: 0,   cap: 40,  u: '%', t: 'chance for lightning to stun' },
   ],
   green: [
-    { k: 'shp',       v: 15, base: 100, cap: 400, u: '%', t: 'golem HP' },
-    { k: 'sspd',      v: 10, base: 100, cap: 200, u: '%', t: 'golem speed' },
-    { k: 'srate',     v: 10, base: 100, cap: 250, u: '%', t: 'summon rate' },
-    { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' },
-    { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' },
-    { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' },
+    { k: 'ehp',       v: 20, base: 0,   cap: 1e9, u: '',  t: 'max HP (no limit)' },
+    { k: 'earmor',    v: 2,  base: 0,   cap: 1e9, u: '',  t: 'armor (no limit)' },
+    { k: 'eregen',    v: .6, base: 0,   cap: 30,  u: '',  t: 'HP regen / sec' },
+    { k: 'shp',       v: 15, base: 100, cap: 400, u: '%', t: 'golem HP', req: GOLEMERS },
+    { k: 'sspd',      v: 10, base: 100, cap: 200, u: '%', t: 'golem speed' , req: GOLEMERS },
+    { k: 'srate',     v: 10, base: 100, cap: 250, u: '%', t: 'summon rate' , req: GOLEMERS },
+    { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' , req: GOLEMERS },
+    { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' , req: GOLEMERS },
+    { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' , req: GOLEMERS },
     { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
     { k: 'thornPct',  v: 20, base: 100, cap: 600, u: '%', t: 'thorn damage multiplier' },
     { k: 'thornPen',  v: 4,  base: 0,   cap: 80,  u: '',  t: 'thorn armor penetration' },
@@ -147,11 +151,16 @@ const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) :
 const abilityBase = w => 8 + 2.2 * w;
 const BOSS_HP = 800;   // x hpMult(wave)
 function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.31, w - 20); return m; }
-function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m; }
+let ENEMY_DMG = 1.9;   // enemies hit harder to match the armor curve (70% soft cap, 80% hard cap)
+function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m * ENEMY_DMG; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
 // armor is a % reduction for everyone: armor / (armor + ARM_K). 25 armor = 33% less damage, 50 = 50%, 100 = 67%.
 const ARM_K = 50;
-const armRed = a => a > 0 ? ARM_K / (ARM_K + a) : 1;   // damage multiplier left after armor
+const armRed = a => a > 0 ? ARM_K / (ARM_K + a) : 1;   // enemies: damage multiplier left after armor
+// you: armor climbs quickly to a 70% soft cap (30 armor), then slowly to an 80% hard cap (100 armor)
+const ARM_SOFT = 30, ARM_HARD = 100;
+const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .8) : Math.min(.8, .7 + .1 * (a - ARM_SOFT) / (ARM_HARD - ARM_SOFT));
+const playerArm = a => 1 - armBlock(a);
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 12 : 0)); }
 function enemyPool(w) {

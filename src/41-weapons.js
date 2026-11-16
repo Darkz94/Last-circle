@@ -55,7 +55,6 @@ function strike(w, e, dir) {
     const b = e.dg || (e.dg = { n: 0, sum: 0 }); b.n++; b.sum += dealt;
     if (b.n >= 5) { const bd = b.sum * .3; b.n = 0; b.sum = 0; dmg(e, bd, { tr: true, col: '#d0213f', src: 'bleed' }); puff(e.x, e.y, '#b0102c', 5, 110, .35); }
   }
-  if (ty === 'shield' && w.el === 'green' && !e.dead) thorns(e, true);   // Earth shields bash with your thorns
   if (Math.random() * 100 < tot.stun) stun(e, .6);
   knock(e, dir, TYPES[w.type].knock || Math.random() * 100 < tot.knock ? 30 : 3);
   // the element's own small effect
@@ -78,10 +77,6 @@ function updWeapons(dt) {
     w.anim = Math.max(0, w.anim - dt * 6);
     w.cd -= dt * atkSpeed(w);
     if (w.cd <= 0) w.cd = weaponAttack(w) ? TYPES[w.type].cd * rnd(.95, 1.05) : .05;
-    if (w.el === 'green') {
-      w.sumT -= dt * E('green', 'srate') / 100;
-      if (w.sumT <= 0) { w.sumT = SUM_CD; summonGolems(w.tier + (w.evo ? 1 : 0), p.x, p.y, 1 + sv('brood') + (rel('twin') ? 1 : 0) + (syn('livingstorm') >= 0 ? 2 : 0)); }
-    }
   }
 }
 
