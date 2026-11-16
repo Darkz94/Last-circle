@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 25;
+const GAME_VERSION = 26;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -608,8 +608,8 @@ const ABIL = {
       fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s] * areaM(), spd: 320, hit: new Set(), dmg: S.ab * a.m[s] }); } },
     { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .1, d: (a, s) => `Enemies inside a ${a.r[s]} ring around you catch a burn stack worth ${a.v[s] * 6}% of your ability power every ${fmt(auraEvery())}s`,
       fire(a, s) { const tot2 = S.ab * 6 * a.v[s] / 100, iv = auraEvery(); eachNear(S.p.x, S.p.y, a.r[s], e => { if (S.time < (e.auraN || 0)) return; e.auraN = S.time + iv; burn(e, burnFrom(tot2)); }); } },
-    { id: 'phoenix', name: 'Contagion', v: [50, 50, 50], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.v[s]}% of its unburnt fire jumps to each of the ${a.n[s]} nearest enemies`,
-      kill(a, s, e) { const rem = burnLeft(e); if (rem <= 0) return; S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140).sort((p, q) => Math.hypot(p.x - e.x, p.y - e.y) - Math.hypot(q.x - e.x, q.y - e.y)).slice(0, a.n[s]).forEach(o => { burn(o, rem * a.v[s] / 100); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .25, col: FIRE }); }); } },
+    { id: 'phoenix', name: 'Contagion', v: [50, 50, 50], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.v[s]}% of its unburnt fire is shared between the ${a.n[s]} nearest enemies`,
+      kill(a, s, e) { const rem = burnLeft(e); if (rem <= 0) return; S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140).sort((p, q) => Math.hypot(p.x - e.x, p.y - e.y) - Math.hypot(q.x - e.x, q.y - e.y)).slice(0, a.n[s]).forEach((o, i, arr) => { burn(o, rem * a.v[s] / 100 / arr.length); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .25, col: FIRE }); }); } },   // shared, so fire never grows as it spreads
     { id: 'sprite', name: 'Fire Sprites', v: [8, 6, 4], r: [60, 75, 95], m: [2, 2.6, 3.4], d: (a, s) => `Every ${a.v[s]}s a fire sprite waddles out and hurls itself at the nearest enemy, exploding and setting it ablaze`,
       fire(a, s) { sfx('summon'); S.sprites.push({ x: S.p.x, y: S.p.y, life: 12, state: 'walk', vx: 0, vy: 0, lt: 0, r: a.r[s] * areaM(), dmg: S.ab * a.m[s], a: Math.random() * TAU }); } },
   ]),
@@ -3105,14 +3105,15 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 25,
+  v: 26,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
     'Ice: Ice Prison traps crowds with a ring of ice',
     "Lightning's automatic strikers hit 10% softer",
     'Wildfire now spreads when a burning enemy dies; burns are reduced by armor; enemy armor blocks at most 80%',
-    'Explosions no longer set enemies on fire; Contagion passes on 50% of the unfinished burn',
+    'Explosions no longer set enemies on fire',
+    'Contagion shares 50% of the unfinished burn between its targets (it used to multiply fire with every death)',
     'Explosion size and shatter radius are now part of ability area, which now also grows projectiles, Volcano and other lasting effects',
     'New level-up: ability cooldown reduction (timed abilities never go below 1s)',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
@@ -3220,7 +3221,7 @@ function renderDead() {
 }
 const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
 const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', explosion: '#ff5a3c', thorns: '#e6c882', bleed: '#d0213f', execute: '#ffffff', golem: '#5ee08a', shatter: '#4fc3ff', steam: '#c9e8ff', ability: '#9b8cff' };
-const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
+const big = n => n >= 1e12 ? fmt(Math.round(n / 1e11) / 10) + 'T' : n >= 1e9 ? fmt(Math.round(n / 1e8) / 10) + 'B' : n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
 function barList(entries, total, nameOf, colOf) {
   return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
     return `<div class="sbar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');

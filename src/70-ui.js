@@ -108,14 +108,15 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 25,
+  v: 26,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
     'Ice: Ice Prison traps crowds with a ring of ice',
     "Lightning's automatic strikers hit 10% softer",
     'Wildfire now spreads when a burning enemy dies; burns are reduced by armor; enemy armor blocks at most 80%',
-    'Explosions no longer set enemies on fire; Contagion passes on 50% of the unfinished burn',
+    'Explosions no longer set enemies on fire',
+    'Contagion shares 50% of the unfinished burn between its targets (it used to multiply fire with every death)',
     'Explosion size and shatter radius are now part of ability area, which now also grows projectiles, Volcano and other lasting effects',
     'New level-up: ability cooldown reduction (timed abilities never go below 1s)',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
@@ -223,7 +224,7 @@ function renderDead() {
 }
 const SRC_NAME = { weapon: 'Weapon hits', burn: 'Burn', lightning: 'Lightning', explosion: 'Explosions', thorns: 'Thorns', bleed: 'Bleed', execute: 'Executes', golem: 'Golems', shatter: 'Shatter', steam: 'Steam bursts', ability: 'Other abilities' };
 const SRC_COL = { weapon: '#e8e6f0', burn: '#ff8a4a', lightning: '#ffd23f', explosion: '#ff5a3c', thorns: '#e6c882', bleed: '#d0213f', execute: '#ffffff', golem: '#5ee08a', shatter: '#4fc3ff', steam: '#c9e8ff', ability: '#9b8cff' };
-const big = n => n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
+const big = n => n >= 1e12 ? fmt(Math.round(n / 1e11) / 10) + 'T' : n >= 1e9 ? fmt(Math.round(n / 1e8) / 10) + 'B' : n >= 1e6 ? fmt(Math.round(n / 1e5) / 10) + 'M' : n >= 1e4 ? fmt(Math.round(n / 100) / 10) + 'k' : fmt(Math.round(n));
 function barList(entries, total, nameOf, colOf) {
   return entries.filter(([, v]) => v >= 1).sort((a, b) => b[1] - a[1]).map(([k, v]) => { const p = v / Math.max(1, total) * 100;
     return `<div class="sbar"><div class="bl"><span>${nameOf(k)}</span><b>${big(v)} <span class="hint">${p < 1 ? '<1' : Math.round(p)}%</span></b></div><div class="bt"><i style="width:${Math.max(1.5, p)}%;background:${colOf(k)}"></i></div></div>`; }).join('');

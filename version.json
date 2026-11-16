@@ -1,1 +1,1 @@
-{ "version": 25, "notes": "Explosions no longer burn. Contagion passes on 50%. Explosion size and shatter radius merged into ability area, which now also grows projectiles, Volcano and lasting effects. New: ability cooldown reduction (min 1s)." }
+{ "version": 26, "notes": "Contagion now shares its fire between targets instead of multiplying it (fixes runaway burn damage). Big numbers show as B and T." }
