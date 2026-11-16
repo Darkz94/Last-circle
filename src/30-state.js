@@ -82,7 +82,7 @@ function recalc() {
   const st = S.st;
   const t = { range: st.range, atkSpd: st.atkSpd, critDmg: st.critDmg, crit: st.crit, knock: 0, maxHp: st.maxHp, flat: st.flat, pen: st.pen, armor: st.armor,
     regen: st.regen, dmgPct: st.dmgPct, speed: st.speed, stun: 0, leech: 0, pickup: st.pickup, hpMul: 1,
-    thornFlat: S.weapons.reduce((n, w) => n + (w.el === 'green' ? THF[w.tier] * (w.evo ? 2 : 1) : 0), 0) + E('green', 'thornFlat'), thornPct: E('green', 'thornPct') };
+    thornFlat: S.weapons.reduce((n, w) => n + (w.el === 'green' ? THF[w.tier] * (w.evo ? 2 : 1) : 0), 0) + E('green', 'thornFlat') };
   for (const ty of TYPE_KEYS) { const n = S.tcounts[ty] || 0; S.typeSets[ty].forEach((k, i) => { if (n >= TTHRESH[i]) t[k] += STAT[k].set; }); }
   for (const w of S.weapons) for (const k of w.afx) t[k] += afxVal(k, w);
   for (const w of S.weapons) if (w.el === 'green') t.maxHp += EHP[w.tier] * (w.evo ? 2 : 1);
@@ -101,7 +101,12 @@ function recalc() {
   tot.rangeM = 1 + tot.range / 100;
   tot.pickR = 48 * (1 + tot.pickup / 100);
   tot.bond = E('green', 'bond') / 100;
-  tot.thornPen = E('green', 'thornPen');
+  // thorns: Earth turns defence into offence. Only stats you choose at level-up count as "bonus".
+  tot.bonusArmor = (S.st.armor || 0) + E('green', 'earmor');
+  tot.bonusHp = Math.max(0, (S.st.maxHp || 100) - 100) + E('green', 'ehp');
+  tot.thornCrit = Math.min(100, tot.bonusArmor);          // 1% thorn crit chance per bonus armor
+  tot.thornCritM = 1.5 + tot.bonusHp / 100;                // +1% thorn crit damage per bonus HP
+  tot.thornPen = tot.regen * 3;                            // 3 thorn penetration per HP regen
   tot.thornFlat += tot.maxHp * (tot.thornFromHp || 0) + tot.regen * (tot.thornFromRegen || 0);   // Bloodstone, Living Stone
   S.p.hp = Math.min(S.p.hp, tot.maxHp);
   renderSlots();

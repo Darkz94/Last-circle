@@ -56,7 +56,7 @@ function burn(e, total, o) {
   if (e.frozen > 0 && !inSteam && syn('thermal') >= 0) {
     // Thermal Shock: fire on a frozen enemy bursts into steam
     inSteam = true; e.frozen = 0;
-    boom(e.x, e.y, 60, S.ab * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, pierce: true, src: 'steam', freezeCh: syn('thermal') ? 100 : 0 });
+    boom(e.x, e.y, 60, S.ab * 1.2 + e.maxHp * (e.boss || e.elite ? .02 : .08), '#e8f0ff', { small: true, src: 'steam', freezeCh: syn('thermal') ? 100 : 0 });
     inSteam = false;
   }
   if (!e.bs) e.bs = [];
@@ -186,13 +186,16 @@ function makeBolt(x1, y1, x2, y2) {
 // ---- thorns (Earth only): every enemy attack is punished, even ones you're invulnerable to.
 // flat thorns x thorn multiplier (+ Retribution's share of the hit), reduced by enemy armor (as a %) after thorn penetration.
 // k scales the hit: 1 (or undefined) when an enemy hits you, a fraction for Thornstrike weapon hits
+const thornGrow = () => 1 + (abilityBase(Math.max(1, S.wave)) / abilityBase(1) - 1) * .75;   // thorns grow with the wave (a bit slower than ability power)
 function thorns(e, k) {
   if (e.dead) return;
   const rt = sv('retri');
   if (tot.thornFlat <= 0 && !rt) return;
-  let raw = (tot.thornFlat * tot.thornPct / 100 + e.dmg * rt / 100) * (k || 1);
+  // flat thorns grow with the wave like ability power, then damage % applies; Retribution returns the hit itself
+  let raw = (tot.thornFlat * thornGrow() * (1 + tot.dmgPct / 100) + e.dmg * rt / 100) * (k || 1);
+  const tcrit = Math.random() * 100 < tot.thornCrit; if (tcrit) raw *= tot.thornCritM;
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
-  const td = dmg(e, Math.max(1, raw * armRed(Math.max(0, e.armor - tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns' });
+  const td = dmg(e, Math.max(1, raw * armRed(Math.max(0, e.armor - tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns', crit: tcrit });
   if (tot.leech) heal(td * tot.leech / 100);
   if (sv('leech')) heal(td * sv('leech') / 100);   // Lifestone
   if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.ab)));

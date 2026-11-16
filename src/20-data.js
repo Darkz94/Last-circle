@@ -47,7 +47,7 @@ function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.2
 const AREA_CAP = 150;   // ability area tops out at +150% (15 picks)
 const PRIM = [
   { k: 'dmgPct',  v: 10,  t: v => `+${v}% damage` },
-  { k: 'flat',    v: 2,   t: v => `+${v} flat damage` },
+  { k: 'flat',    v: 2.2, t: v => `+${v} flat damage` },
   { k: 'crit',    v: 4,   t: v => `+${v}% crit chance` },
   { k: 'critDmg', v: 20,  t: v => `+${v}% crit damage` },
   { k: 'maxHp',   v: 15,  t: v => `+${v} max HP` },
@@ -90,7 +90,7 @@ const EPASS = {
     { k: 'ccDur',     v: 10,  base: 100, cap: 200, u: '%', t: 'stun & root duration' },
     { k: 'freezeDur', v: .15, base: 1.1, cap: 3,   u: 's', t: 'freeze duration' },
     { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
-    { k: 'shatterPct',v: 3,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 30, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
+    { k: 'shatterPct',v: .5,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 8, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
   ],
   yellow: [
     { k: 'strike', v: 10, base: 28,  cap: 128, u: '%', t: 'lightning damage' },
@@ -112,8 +112,6 @@ const EPASS = {
     { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' , req: GOLEMERS },
     { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' , req: GOLEMERS },
     { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
-    { k: 'thornPct',  v: 20, base: 100, cap: 600, u: '%', t: 'thorn damage multiplier' },
-    { k: 'thornPen',  v: 4,  base: 0,   cap: 80,  u: '',  t: 'thorn armor penetration' },
   ],
 };
 const EDEF = {}; for (const c of ORDER) { EDEF[c] = {}; for (const d of EPASS[c]) EDEF[c][d.k] = d; }

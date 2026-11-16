@@ -25,8 +25,8 @@ const ABIL = {
       fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y, dm = S.ab * a.m[s]; for (let i = 0; i < a.n[s]; i++) { const d = 30 + i * 620 / (a.n[s] - 1); later(i * .05, () => boom(ox + Math.cos(an) * d, oy + Math.sin(an) * d, boomR(36), dm, FIRE, { small: true })); } } },
     { id: 'flame', name: 'Flamethrower', v: [4.5, 3.5, 2.5], rg: [120, 150, 185], m: [.2, .3, .45], d: (a, s) => `Every ${a.v[s]}s breathe a cone of fire (${a.rg[s]} range) that ignites all it touches`,
       fire(a, s) { sfx('flame'); S.flames.push({ t: 0, dur: 1, dir: aim(), rg: a.rg[s] * areaM(), dmg: S.ab * a.m[s], tick: 0 }); } },
-    { id: 'pyre', name: 'Pyre', v: [20, 35, 60], d: (a, s) => `Burning enemies explode on death for ${a.v[s]}% of their max HP`,
-      kill(a, s, e) { if (e.burnT > 0) boom(e.x, e.y, boomR(60), e.maxHp * a.v[s] / 100, FIRE, { pierce: true }); } },
+    { id: 'pyre', name: 'Pyre', v: [2, 5, 8], d: (a, s) => `Burning enemies explode on death for ${a.v[s]}% of their max HP`,
+      kill(a, s, e) { if (e.burnT > 0) boom(e.x, e.y, boomR(60), e.maxHp * a.v[s] / 100, FIRE, {}); } },
     { id: 'kindle', name: 'Kindling', v: [20, 40, 75], d: (a, s) => `Burning enemies take +${a.v[s]}% damage`,
       mult(a, s, e) { return e.burnT > 0 ? 1 + a.v[s] / 100 : 1; } },
     { id: 'meteor', name: 'Meteor Shower', v: [8, 6, 4], n: [3, 5, 8], m: [1.5, 2, 2.6], d: (a, s) => `Every ${a.v[s]}s ${a.n[s]} meteors crash down on enemies`,
@@ -45,8 +45,8 @@ const ABIL = {
 
   // ------------------------------------------------------------------ FROST: control the fight; damage comes from the cold itself
   blue: defs('blue', [
-    { id: 'shatter', name: 'Shatter', v: [8, 12, 18], d: (a, s) => `Frozen enemies shatter on death for ${a.v[s]}% of their max HP (level-ups take it to 30%)`,
-      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, 60, e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, pierce: true, src: 'shatter' }); } },
+    { id: 'shatter', name: 'Shatter', v: [2, 4, 6], d: (a, s) => `Frozen enemies shatter on death for ${a.v[s]}% of their max HP (level-ups take it to 8%)`,
+      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, 60, e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, src: 'shatter' }); } },
     { id: 'gust', name: 'Frost Gust', v: [5, 4, 3], n: [2, 3, 4], rg: [160, 200, 240], d: (a, s) => `Every ${a.v[s]}s a freezing gust blasts enemies back with ${a.n[s]} chill across a wide cone`,
       fire(a, s) { const p = S.p, an = aim(); sfx('gust'); FX({ k: 'gust', x: p.x, y: p.y, dir: an, arc: Math.PI / 2, r: a.rg[s], life: .45 }); eachNear(p.x, p.y, a.rg[s], e => { if (!inCone(e, p.x, p.y, an, Math.PI / 4, a.rg[s])) return; dmg(e, S.ab * .5, { col: COL.blue }); chill(e, a.n[s]); knock(e, an, 30); }); } },
     { id: 'pillar', name: 'Ice Pillar', v: [7, 6, 4.5], life: [5, 7, 9], d: (a, s) => `Every ${a.v[s]}s raise an ice pillar among the enemies that chills and frost-burns everything near it for ${a.life[s]}s`,
@@ -147,8 +147,8 @@ const ABIL = {
       stats(a, s, t) { t.armor += a.v[s]; t.hpMul *= 1 + a.hp[s] / 100; } },
     { id: 'rockfall', name: 'Rockfall', v: [4, 3, 2], n: [2, 3, 5], m: [.25, .32, .42], d: (a, s) => `Every ${a.v[s]}s ${a.n[s]} rocks fall on enemies, stunning them`,
       fire(a, s) { const dm = tot.maxHp * a.m[s]; shuffle(inArena()).slice(0, a.n[s]).forEach((e, i) => { const x = e.x, y = e.y; later(i * .1, () => FX({ k: 'warn', x, y, r: 30, life: .35, col: ROCK })); later(i * .1 + .35, () => { boom(x, y, 30, dm, ROCK, { stun: .5, small: true }); puff(x, y, '#8a7350', 6, 110, .4); }); }); } },
-    { id: 'thornskin', name: 'Thorn Skin', v: [12, 26, 50], p: [30, 60, 120], d: (a, s) => `+${a.v[s]} thorn damage and +${a.p[s]}% thorn damage multiplier`,
-      stats(a, s, t) { t.thornFlat += a.v[s]; t.thornPct += a.p[s]; } },
+    { id: 'thornskin', name: 'Thorn Skin', v: [16, 34, 65], d: (a, s) => `+${a.v[s]} thorn damage`,
+      stats(a, s, t) { t.thornFlat += a.v[s]; } },
     { id: 'retri', name: 'Retribution', v: [50, 100, 200], d: (a, s) => `Thorns also hurl back ${a.v[s]}% of the damage each hit would deal` },
     { id: 'titan', name: "Titan's Grip", v: [1, 2, 3.5], d: (a, s) => `Weapon hits deal bonus damage equal to ${a.v[s]}% of your max HP` },
     { id: 'jugger', name: 'Juggernaut', v: [50, 100, 200], late: true, d: (a, s) => `Gain flat weapon damage equal to ${a.v[s]}% of your armor`,

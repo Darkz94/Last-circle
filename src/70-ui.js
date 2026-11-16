@@ -80,7 +80,7 @@ function statsHtml() {
     ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
     ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max 80%)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
-    ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * tot.thornPct / 100)} (pen ${fmt(tot.thornPen)})` : '—')}
+    ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * thornGrow() * (1 + tot.dmgPct / 100))} · crit ${Math.round(tot.thornCrit)}% ×${fmt(Math.round(tot.thornCritM * 100) / 100)} · pen ${Math.round(tot.thornPen)}` : '—')}
   </div>
   ${relics ? `<h3>Relics</h3>${relics}` : ''}
   ${passives ? `<h3>Element upgrades</h3><div class="chips">${passives}</div>` : ''}`;
@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 26,
+  v: 27,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -119,11 +119,14 @@ const PATCH = {
     'Contagion shares 50% of the unfinished burn between its targets (it used to multiply fire with every death)',
     'Explosion size and shatter radius are now part of ability area, which now also grows projectiles, Volcano and other lasting effects',
     'New level-up: ability cooldown reduction (timed abilities never go below 1s)',
+    'Pyre, Shatter and Thermal Shock deal 2-8% of enemy max HP, and armor reduces them',
+    'Thorns grow with the wave and your damage %; bonus armor gives thorn crit chance, bonus HP gives thorn crit damage, HP regen gives thorn penetration',
+    'Flat damage level-ups give 10% more',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
   new: ['grace', 'wings', 'prison', 'golems'],
-  changed: ['blast', 'phoenix', 'syn:volcano', 'combust', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
+  changed: ['blast', 'phoenix', 'syn:volcano', 'combust', 'pyre', 'shatter', 'thornskin', 'syn:thermal', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
 };
 const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind !== 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(kind === 'syn' ? 'syn:' + id : id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {

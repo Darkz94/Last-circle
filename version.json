@@ -1,1 +1,1 @@
-{ "version": 26, "notes": "Contagion now shares its fire between targets instead of multiplying it (fixes runaway burn damage). Big numbers show as B and T." }
+{ "version": 27, "notes": "Pyre, Shatter and Thermal Shock now 2-8% of enemy HP through armor. Thorns grow with the wave and damage %, crit from bonus armor/HP, pen from regen. Flat damage level-ups +10%." }
