@@ -134,3 +134,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 .sbar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
 .sbar .bt i{display:block;height:100%;border-radius:4px}
 @media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.ptag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:1px}
+.ptag.new{background:#2f6b3a;color:#c9ffd4}
+.ptag.chg{background:#6b552f;color:#ffe9b8}
+.note.gold{background:#1c180e;border-color:#5a4a1f;border-left-color:var(--gold)}

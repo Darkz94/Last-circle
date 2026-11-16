@@ -48,9 +48,9 @@ F.steam2.frame = (a, s, dt) => {
   }
 };
 
-// ---- Meteor Shower (Fire + Earth): meteors land on the thickest crowds
-F.meteor.cd = 6;
-F.meteor.fire = (a, s) => {
+// ---- Starfall (Fire + Earth): falling stars land on the thickest crowds
+F.starfall.cd = 6;
+F.starfall.fire = (a, s) => {
   const spots = [];
   for (let i = 0; i < 6 && spots.length < (s ? 3 : 1); i++) { const d = densest(undefined, undefined, undefined, 70); if (d && spots.every(q => Math.hypot(q.x - d.x, q.y - d.y) > 90)) spots.push(d); }
   spots.forEach((q, i) => {

@@ -26,7 +26,7 @@ const SYN_PAIRS = {
   'red+green': synDef(['red', 'green'], [
     { id: 'magma', name: 'Magma', tags: ['golems', 'burn'], minor: 'Golems leave pools of lava as they walk', major: 'Golems erupt in fire when they crumble' },
     { id: 'molten', name: 'Molten Thorns', tags: ['thorns', 'burn'], minor: 'Thorns set attackers on fire', major: 'Thorns deal double damage to burning enemies' },
-    { id: 'meteor', name: 'Meteor Shower', tags: ['explosions', 'burn'], minor: 'Every 6s a meteor slams into the thickest crowd of enemies', major: '3 meteors, each leaving a pool of lava' },
+    { id: 'starfall', name: 'Starfall', tags: ['explosions', 'burn'], minor: 'Every 6s a falling star slams into the thickest crowd of enemies', major: '3 falling stars, each leaving a pool of lava' },
   ]),
   'yellow+blue': synDef(['yellow', 'blue'], [
     { id: 'supercon', name: 'Superconductor', tags: ['strikes', 'control'], minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning strikes on frozen enemies always crit' },

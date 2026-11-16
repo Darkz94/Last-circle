@@ -77,6 +77,8 @@ function TEST_API() {
     rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, choosePerk, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
+// beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)
+if (CHANNEL === 'beta') { for (const c of ORDER) for (const a of ABIL[c]) CODEX.ab[a.id] = 1; for (const r of RELICS) CODEX.rel[r.id] = 1; for (const id in SYN) CODEX.syn[id] = 1; }
 resize();
 requestAnimationFrame(loop);
 renderStart();

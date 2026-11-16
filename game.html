@@ -153,6 +153,10 @@ h3 span{text-transform:none;letter-spacing:.02em}
 .sbar .bt{height:7px;background:#1d2029;border-radius:4px;overflow:hidden}
 .sbar .bt i{display:block;height:100%;border-radius:4px}
 @media (min-width:640px){.tiles{grid-template-columns:repeat(4,1fr)}}
+.ptag{display:inline-block;font-size:10px;font-weight:700;letter-spacing:.06em;padding:1px 5px;border-radius:4px;margin-left:4px;vertical-align:1px}
+.ptag.new{background:#2f6b3a;color:#c9ffd4}
+.ptag.chg{background:#6b552f;color:#ffe9b8}
+.note.gold{background:#1c180e;border-color:#5a4a1f;border-left-color:var(--gold)}
 
 </style>
 </head>
@@ -172,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 20;
+const GAME_VERSION = 21;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -760,7 +764,7 @@ const SYN_PAIRS = {
   'red+green': synDef(['red', 'green'], [
     { id: 'magma', name: 'Magma', tags: ['golems', 'burn'], minor: 'Golems leave pools of lava as they walk', major: 'Golems erupt in fire when they crumble' },
     { id: 'molten', name: 'Molten Thorns', tags: ['thorns', 'burn'], minor: 'Thorns set attackers on fire', major: 'Thorns deal double damage to burning enemies' },
-    { id: 'meteor', name: 'Meteor Shower', tags: ['explosions', 'burn'], minor: 'Every 6s a meteor slams into the thickest crowd of enemies', major: '3 meteors, each leaving a pool of lava' },
+    { id: 'starfall', name: 'Starfall', tags: ['explosions', 'burn'], minor: 'Every 6s a falling star slams into the thickest crowd of enemies', major: '3 falling stars, each leaving a pool of lava' },
   ]),
   'yellow+blue': synDef(['yellow', 'blue'], [
     { id: 'supercon', name: 'Superconductor', tags: ['strikes', 'control'], minor: 'Lightning jumps further and 2 more times through chilled enemies', major: 'Lightning strikes on frozen enemies always crit' },
@@ -945,9 +949,9 @@ F.steam2.frame = (a, s, dt) => {
   }
 };
 
-// ---- Meteor Shower (Fire + Earth): meteors land on the thickest crowds
-F.meteor.cd = 6;
-F.meteor.fire = (a, s) => {
+// ---- Starfall (Fire + Earth): falling stars land on the thickest crowds
+F.starfall.cd = 6;
+F.starfall.fire = (a, s) => {
   const spots = [];
   for (let i = 0; i < 6 && spots.length < (s ? 3 : 1); i++) { const d = densest(undefined, undefined, undefined, 70); if (d && spots.every(q => Math.hypot(q.x - d.x, q.y - d.y) > 90)) spots.push(d); }
   spots.forEach((q, i) => {
@@ -1165,7 +1169,7 @@ function addWeapon(w) { S.weapons.push({ ...w, id: S.uid++, cd: rnd(0, .3), sumT
 // ---- lookups
 const sv = (id, k = 'v') => { const s = S.on[id]; return s === undefined ? 0 : AB[id][k][s]; };
 const rel = id => S.relicOn[id] === 1;
-function E(c, k) { const d = EDEF[c][k]; const b = typeof d.base === 'function' ? d.base() : d.base; return Math.min(d.cap, b + (S.ep[c][k] || 0)); }
+function E(c, k) { const d = EDEF[c][k]; const b = typeof d.base === 'function' ? d.base() : d.base; return Math.min(d.cap, b + ((S && S.ep[c][k]) || 0)); }   // outside a run (menus, Codex): base value
 const xpNeed = () => Math.round(6 + (S.level - 1) * 5 + (S.level - 1) * (S.level - 1) * .14);
 
 function recalc() {
@@ -3058,12 +3062,26 @@ function renderStart() {
   showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}${CHANNEL === 'beta' ? ' · <b style="color:var(--gold)">BETA</b>' : ''}`,
     tabs: [['play', 'Play'], ['elements', 'Elements'], ['types', 'Weapons'], ['codex', `Codex ${seen}/${total}`]], tab: UI.stab, tabAct: 'stab', body }), 'start:' + UI.stab);
 }
+// what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
+const PATCH = {
+  v: 21,
+  notes: ['10 new synergies: a third option for every pair and a second option for every trio',
+    'Trios now pick the option whose theme best matches the pairs rolled that run',
+    'Inferno Aura applies normal burn stacks, with a new pulse-speed upgrade',
+    'Combustion detonates enemies that are already at max burn stacks',
+    'Ability area is capped at +150%'],
+  new: ['sparks', 'steam2', 'starfall', 'crystal', 'lodestone', 'barrier', 'cycle', 'forge', 'seasons', 'totems'],
+  changed: ['inferno', 'combust'],
+};
+const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind === 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {
-  let h = '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
-  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b><br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  let h = CHANNEL === 'beta'
+    ? `<div class="note gold"><b>Beta · what's new in v${PATCH.v}</b><ul style="margin:6px 0 0 18px;padding:0">${PATCH.notes.map(n => `<li>${n}</li>`).join('')}</ul><span class="hint">Everything is unlocked in the beta. Look for the NEW and CHANGED tags below.</span></div>`
+    : '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
+  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   const allSyn = Object.values(SYN);
-  h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${synText(a, 1)}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
-  h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b><br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b>${patchTag(a.id, 'syn')} <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${a.els.length === 3 ? synText(a, 1) : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
+  h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b>${patchTag(r.id)}<br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   return h;
 }
 
@@ -3326,6 +3344,8 @@ function TEST_API() {
     rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, choosePerk, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
+// beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)
+if (CHANNEL === 'beta') { for (const c of ORDER) for (const a of ABIL[c]) CODEX.ab[a.id] = 1; for (const r of RELICS) CODEX.rel[r.id] = 1; for (const id in SYN) CODEX.syn[id] = 1; }
 resize();
 requestAnimationFrame(loop);
 renderStart();

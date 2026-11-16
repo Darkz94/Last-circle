@@ -99,12 +99,26 @@ function renderStart() {
   showScreen(sheet({ title: '<h1>Last <em>Circle</em></h1>', sub: `Hold the circle. ${b ? 'Best: wave ' + b + ' · ' : ''}v${GAME_VERSION}${CHANNEL === 'beta' ? ' · <b style="color:var(--gold)">BETA</b>' : ''}`,
     tabs: [['play', 'Play'], ['elements', 'Elements'], ['types', 'Weapons'], ['codex', `Codex ${seen}/${total}`]], tab: UI.stab, tabAct: 'stab', body }), 'start:' + UI.stab);
 }
+// what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
+const PATCH = {
+  v: 21,
+  notes: ['10 new synergies: a third option for every pair and a second option for every trio',
+    'Trios now pick the option whose theme best matches the pairs rolled that run',
+    'Inferno Aura applies normal burn stacks, with a new pulse-speed upgrade',
+    'Combustion detonates enemies that are already at max burn stacks',
+    'Ability area is capped at +150%'],
+  new: ['sparks', 'steam2', 'starfall', 'crystal', 'lodestone', 'barrier', 'cycle', 'forge', 'seasons', 'totems'],
+  changed: ['inferno', 'combust'],
+};
+const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind === 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {
-  let h = '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
-  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b><br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  let h = CHANNEL === 'beta'
+    ? `<div class="note gold"><b>Beta · what's new in v${PATCH.v}</b><ul style="margin:6px 0 0 18px;padding:0">${PATCH.notes.map(n => `<li>${n}</li>`).join('')}</ul><span class="hint">Everything is unlocked in the beta. Look for the NEW and CHANGED tags below.</span></div>`
+    : '<p class="hint" style="margin-top:0">Abilities are added here when you unlock them in a run; relics when you take them.</p>';
+  for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   const allSyn = Object.values(SYN);
-  h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${synText(a, 1)}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
-  h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b><br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
+  h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b>${patchTag(a.id, 'syn')} <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${a.els.length === 3 ? synText(a, 1) : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
+  h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b>${patchTag(r.id)}<br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   return h;
 }
 
