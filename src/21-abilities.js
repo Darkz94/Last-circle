@@ -17,8 +17,8 @@ const STRIKER = .9;   // Lightning's automatic strikers (Thunderclap, Ball, Rod,
 const ABIL = {
   // ------------------------------------------------------------------ FIRE: burning, damage over time, explosions
   red: defs('red', [
-    { id: 'blast', name: 'Wildfire', v: [15, 25, 40], n: [2, 3, 4], d: (a, s) => `Fire weapon hits have ${a.v[s]}% chance to spread a burn to ${a.n[s]} nearby enemies`,
-      elHit: true, hit(a, s, w, e, d) { if (Math.random() * 100 >= a.v[s]) return; shuffle(S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 110)).slice(0, a.n[s]).forEach(o => { burn(o, burnFrom(d)); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .2, col: FIRE }); }); } },
+    { id: 'blast', name: 'Wildfire', v: [80, 120, 180], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.n[s]} nearby enemies catch fire for ${a.v[s]}% of your ability power`,
+      kill(a, s, e) { if (!(e.burnT > 0)) return; shuffle(S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 110)).slice(0, a.n[s]).forEach(o => { burn(o, burnFrom(S.ab * a.v[s] / 100)); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .2, col: FIRE }); }); } },
     { id: 'fireball', name: 'Fireball', v: [3, 2.2, 1.5], r: [55, 70, 90], m: [1.5, 2, 3], d: (a, s) => `Every ${a.v[s]}s hurl a fireball that explodes on the first enemy it hits`,
       fire(a, s) { const an = aim(), p = S.p; sfx('whoosh'); S.projs.push({ k: 'fireball', x: p.x, y: p.y, vx: Math.cos(an) * 400, vy: Math.sin(an) * 400, life: 1.6, rad: boomR(a.r[s]), dmg: S.ab * a.m[s] }); } },
     { id: 'bombs', name: 'Bomb Line', v: [5, 4, 3], n: [10, 14, 20], m: [1, 1.3, 1.8], d: (a, s) => `Every ${a.v[s]}s a line of ${a.n[s]} bombs blows up everything in one direction, right across the arena`,

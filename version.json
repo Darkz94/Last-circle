@@ -1,1 +1,1 @@
-{ "version": 23, "notes": "Lightning's automatic strikers hit 10% softer. Mesmerize removed (Frozen Thrall already turns enemies)." }
+{ "version": 24, "notes": "Wildfire spreads when a burning enemy dies. Burns are reduced by armor. Enemy armor (bosses too) blocks at most 80%." }

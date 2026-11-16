@@ -42,7 +42,7 @@ function updEnemies(dt) {
         if (e.bs) e.bs = e.bs.filter(s => s.left > .01);
         e.burnT = e.bs && e.bs.length ? mx + .001 : 0;
         const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
-        if (d > 0) dmg(e, d * fx2 * summerBurn(), { col: '#ff8a4a', pierce: true, dot: true, src: 'burn' });
+        if (d > 0) dmg(e, d * fx2 * summerBurn(), { col: '#ff8a4a', dot: true, src: 'burn' });   // armor reduces burns
       }
       if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
       if (e.burnT <= 0) e.bs = [];

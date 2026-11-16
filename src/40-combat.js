@@ -67,7 +67,7 @@ function burn(e, total, o) {
       // Combustion: an ignite on a fully stacked enemy detonates every stack at once, hitting it and everything
       // around it for all the burn that was left, then the new ignite starts a fresh stack
       const rem = burnLeft(e); e.bs = []; e.burnT = 0;
-      if (rem > 0) { boom(e.x, e.y, 70, rem, '#ffb347', { pierce: true, src: 'burn' }); if (e.dead) return; }
+      if (rem > 0) { boom(e.x, e.y, 70, rem, '#ffb347', { src: 'burn' }); if (e.dead) return; }
     }
   }
   if (isCold(e)) steamCloud(e);   // Blinding Steam
