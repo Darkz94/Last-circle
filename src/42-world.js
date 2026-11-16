@@ -161,7 +161,7 @@ function updProjectiles(dt) {
     if (z.k === 'snow' && Math.random() < .6 && S.pt.length < 480) S.pt.push({ x: z.x + rnd(-z.r, z.r), y: z.y + rnd(-z.r, z.r), vx: rnd(-60, -20), vy: rnd(20, 60), t: 0, life: .5, col: '#e8f8ff', sz: 2 });
     if (z.tick > 0) continue;
     z.tick = .3;
-    if (z.k === 'storm') { z.tick = z.int; const inside = []; eachNear(z.x, z.y, z.r, e => inside.push(e)); if (inside.length) bolt(pick(inside), 1, { noChain: true }); }
+    if (z.k === 'storm') { z.tick = z.int; const inside = []; eachNear(z.x, z.y, z.r, e => inside.push(e)); if (inside.length) bolt(pick(inside), STRIKER, { noChain: true }); }
     else if (z.k === 'fire') eachNear(z.x, z.y, z.r, e => { dmg(e, z.dps * .3, { col: COL.red, pierce: true }); burn(e, burnFrom(z.dps)); });
     else eachNear(z.x, z.y, z.r, e => { dmg(e, z.dps * .3, { col: COL.blue }); chill(e, 1); });
   }
@@ -172,10 +172,10 @@ function updProjectiles(dt) {
     o.life -= dt; o.tick -= dt;
     const tg = nearest(o.x, o.y, 500);
     if (tg) { const a = Math.atan2(tg.y - o.y, tg.x - o.x); o.x += Math.cos(a) * 85 * dt; o.y += Math.sin(a) * 85 * dt; }
-    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75, hit); if (!e) break; hit.add(e); bolt(e, o.mult, { from: o, noChain: true }); } }
+    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75, hit); if (!e) break; hit.add(e); bolt(e, o.mult * STRIKER, { from: o, noChain: true }); } }
   }
   S.orbs = S.orbs.filter(o => o.life > 0);
-  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110); if (e) bolt(e, 1, { from: { x: rd.x, y: rd.y - 22 } }); } }
+  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110); if (e) bolt(e, STRIKER, { from: { x: rd.x, y: rd.y - 22 } }); } }
   S.rods = S.rods.filter(rd => rd.life > 0);
 }
 
@@ -208,7 +208,7 @@ function updSummons(dt) {
     sp.x += dx / d * 90 * dt; sp.y += dy / d * 90 * dt;
     if (d < 130) {
       sp.state = 'cast'; sp.life = sp.n * .13 + .35;
-      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170); if (t) bolt(t, 1, { from: { x: sp.x, y: sp.y - 12 } }); });
+      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170); if (t) bolt(t, STRIKER, { from: { x: sp.x, y: sp.y - 12 } }); });
     }
   }
   S.spirits = S.spirits.filter(sp => sp.life > 0);

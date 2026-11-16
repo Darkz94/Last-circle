@@ -13,6 +13,7 @@ function defs(el, list) { for (const a of list) { a.el = el; AB[a.id] = a; } ret
 const pct = x => Math.round(x * 100);
 
 const auraEvery = () => 2 / (1 + E('red', 'auraSpd') / 100);   // Inferno Aura pulse: 2s, down to 1s
+const STRIKER = .9;   // Lightning's automatic strikers (Thunderclap, Ball, Rod, Storm, Cloud, Beam, Spirit) hit 10% softer
 const ABIL = {
   // ------------------------------------------------------------------ FIRE: burning, damage over time, explosions
   red: defs('red', [
@@ -74,8 +75,6 @@ const ABIL = {
       elHit: true, hit(a, s, w, e) { if (!e.dead && !e.boss && !e.elite && !e.special && Math.random() * 100 < a.v[s]) enthrall(e); } },
     { id: 'prison', name: 'Ice Prison', v: [10, 8, 6], life: [3, 4, 6], d: (a, s) => `Every ${a.v[s]}s a ring of ice blocks traps the thickest crowd for ${a.life[s]}s`,
       fire(a, s) { const c = densest(undefined, undefined, undefined, 60); if (!c) return; sfx('snap'); const n = 12, rr = 62 * areaM(); for (let i = 0; i < n; i++) { const t = i / n * TAU; S.walls.push({ x: c.x + Math.cos(t) * rr, y: c.y + Math.sin(t) * rr, r: 12, life: a.life[s], max: a.life[s], tick: 0, seed: Math.random() }); } eachNear(c.x, c.y, 55, e => chill(e, 2)); } },
-    { id: 'mesmer', name: 'Mesmerize', v: [10, 8, 6], d: (a, s) => `Every ${a.v[s]}s the toughest normal enemy near you is frozen into a thrall that fights for you`,
-      fire(a, s) { const c = S.enemies.filter(e => !e.dead && !e.boss && !e.special && !e.fixed && Math.hypot(e.x - S.p.x, e.y - S.p.y) < 260).sort((p, q) => q.hp - p.hp)[0]; if (c) { FX({ k: 'ring', x: c.x, y: c.y, r: 30, life: .4, col: ICE }); enthrall(c); } } },
     { id: 'wizard', name: 'Frost Wizards', v: [10, 8, 6], life: [10, 12, 15], d: (a, s) => `Every ${a.v[s]}s a frost wizard joins you for ${a.life[s]}s, chilling groups of enemies and raising ice pillars`,
       fire(a, s) { if (S.wizards.length >= 3) return; sfx('freeze'); S.wizards.push({ x: S.p.x, y: S.p.y, life: a.life[s], tick: .6, ptick: 2, a: Math.random() * TAU }); } },
   ]),
@@ -83,7 +82,7 @@ const ABIL = {
   // ------------------------------------------------------------------ LIGHTNING: speed. Hits take a % of the enemy's current HP.
   yellow: defs('yellow', [
     { id: 'clap', name: 'Thunderclap', v: [6, 4, 2.5], n: [1, 2, 4], d: (a, s) => `Every ${a.v[s]}s lightning strikes ${pl(a.n[s], 'random enemy', 'random enemies')} for 150% of your ability power`,
-      fire(a, s) { shuffle(inArena()).slice(0, a.n[s]).forEach(e => bolt(e, 1.5)); } },
+      fire(a, s) { shuffle(inArena()).slice(0, a.n[s]).forEach(e => bolt(e, 1.5 * STRIKER)); } },
     { id: 'call', name: 'Storm Call', v: [15, 25, 40], d: (a, s) => `Every lightning strike has ${a.v[s]}% chance to call another strike on a random enemy` },
     { id: 'smite', name: 'Execute', v: [5, 10, 20], d: (a, s) => `Lightning strikes execute non-boss enemies below ${a.v[s]}% HP (no on-kill effects)` },
     { id: 'twice', name: 'Strikes Twice', v: [20, 35, 60], d: (a, s) => `All lightning has ${a.v[s]}% chance to hit again` },
@@ -103,10 +102,10 @@ const ABIL = {
       kill(a, s, e) { if (e.killer === 'lightning') { S.surge.n = Math.min(10, S.surge.n + 1); S.surge.t = 3; } } },
     { id: 'conductor', name: 'Conductor', v: [30, 60, 100], d: (a, s) => `Lightning deals +${a.v[s]}% damage to stunned, chilled or frozen enemies` },
     { id: 'storm', name: 'Storm Cloud', v: [1.2, .8, .5], m: [.6, .8, 1], d: (a, s) => `A storm cloud follows you, striking a nearby enemy every ${a.v[s]}s`,
-      fire(a, s) { const p = S.p, tg = nearest(p.x, p.y, 170); if (tg) bolt(tg, a.m[s], { from: { x: p.x + Math.cos(S.time) * 20, y: p.y - 40 } }); } },
+      fire(a, s) { const p = S.p, tg = nearest(p.x, p.y, 170); if (tg) bolt(tg, a.m[s] * STRIKER, { from: { x: p.x + Math.cos(S.time) * 20, y: p.y - 40 } }); } },
     { id: 'current', name: 'Live Current', v: [15, 30, 50], d: (a, s) => `Lightning weapons attack ${a.v[s]}% faster` },
     { id: 'plasma', name: 'Plasma Beam', v: [.15, .22, .3], rg: [130, 160, 200], d: (a, s) => `A plasma beam locks onto the nearest enemy within ${a.rg[s]}, zapping it for ${pct(a.v[s])}% of your ability power 10 times a second`,
-      frame(a, s, dt) { const tg = nearest(S.p.x, S.p.y, a.rg[s]); S.beam = tg; if (!tg) return; S.beamT -= dt; if (S.beamT <= 0) { S.beamT = .1; bolt(tg, a.v[s], { silent: true }); } } },
+      frame(a, s, dt) { const tg = nearest(S.p.x, S.p.y, a.rg[s]); S.beam = tg; if (!tg) return; S.beamT -= dt; if (S.beamT <= 0) { S.beamT = .1; bolt(tg, a.v[s] * STRIKER, { silent: true }); } } },
     { id: 'tempest', name: 'Lightning Storm', v: [8, 6, 4], i: [.4, .3, .2], d: (a, s) => `Every ${a.v[s]}s a storm settles over the enemies for 4s, striking inside it every ${a.i[s]}s`,
       fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); pushZone({ k: 'storm', x: tg.x, y: tg.y, r: 85, life: 4, max: 4, tick: 0, int: a.i[s] }); } } },
     { id: 'spirit', name: 'Storm Spirit', v: [9, 7, 5], n: [4, 5, 7], d: (a, s) => `Every ${a.v[s]}s a storm spirit drifts towards the enemies and calls down ${a.n[s]} rapid strikes before fading`,
