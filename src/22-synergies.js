@@ -101,7 +101,7 @@ F.magma.frame = (a, s, dt) => {
   S.magmaT = (S.magmaT || 0) - dt; if (S.magmaT > 0) return; S.magmaT = .45;
   for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) pushZone({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.ab * .35 });
 };
-F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { ignite: true, small: true, pierce: true }); };
+F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { small: true, pierce: true }); };
 F.staticice.frame = (a, s, dt) => {
   S.zapT = (S.zapT || 0) - dt; if (S.zapT > 0) return; S.zapT = 1;
   let n = 0;
@@ -143,11 +143,11 @@ F.volcano.frame = (a, s, dt) => {
     if (S.pt.length < 460) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
     if (v.tick > 0) continue;
     v.tick = .28;
-    const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240));
+    const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240 * areaM()));
     if (!t) continue;
     const x = t.x, y = t.y;
     FX({ k: 'warn', x, y, r: 34, life: .3, col: FIRE });
-    later(.3, () => { boom(x, y, 40, S.ab * 1.6 + tot.maxHp * .08, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 44); if (e2) bolt(e2, .9, { silent: true, full: true }); });
+    later(.3, () => { boom(x, y, 40, S.ab * 1.6 + tot.maxHp * .08, FIRE, { small: true, quiet: true }); const e2 = nearest(x, y, 44); if (e2) bolt(e2, .9, { silent: true, full: true }); });
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };

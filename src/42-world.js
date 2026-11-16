@@ -125,7 +125,7 @@ function updProjectiles(dt) {
     if (f.k === 'fireball') {
       if (S.pt.length < 400) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
       let hit = false; grid.near(f.x, f.y, 72, e => { if (!hit && !e.dead && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 8) hit = true; });
-      if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, { ignite: true }); }
+      if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, {}); }
     } else if (f.k === 'boulder') {
       f.rot += dt * 8;
       if (Math.random() < .4) puff(f.x, f.y, '#8a7350', 1, 40, .4);
@@ -172,10 +172,10 @@ function updProjectiles(dt) {
     o.life -= dt; o.tick -= dt;
     const tg = nearest(o.x, o.y, 500);
     if (tg) { const a = Math.atan2(tg.y - o.y, tg.x - o.x); o.x += Math.cos(a) * 85 * dt; o.y += Math.sin(a) * 85 * dt; }
-    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75, hit); if (!e) break; hit.add(e); bolt(e, o.mult * STRIKER, { from: o, noChain: true }); } }
+    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75 * (o.am || 1), hit); if (!e) break; hit.add(e); bolt(e, o.mult * STRIKER, { from: o, noChain: true }); } }
   }
   S.orbs = S.orbs.filter(o => o.life > 0);
-  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110); if (e) bolt(e, STRIKER, { from: { x: rd.x, y: rd.y - 22 } }); } }
+  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110 * (rd.am || 1)); if (e) bolt(e, STRIKER, { from: { x: rd.x, y: rd.y - 22 } }); } }
   S.rods = S.rods.filter(rd => rd.life > 0);
 }
 
@@ -195,7 +195,7 @@ function updSummons(dt) {
       sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.lt -= dt;
       if (S.pt.length < 480) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
       let hit = sp.lt <= 0; if (!hit) grid.near(sp.x, sp.y, 72, e => { if (!e.dead && Math.hypot(e.x - sp.x, e.y - sp.y) < e.r + 7) hit = true; });
-      if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, { ignite: true }); sp.life = 0; }
+      if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, {}); sp.life = 0; }
     }
   }
   S.sprites = S.sprites.filter(sp => sp.life > 0);
@@ -208,7 +208,7 @@ function updSummons(dt) {
     sp.x += dx / d * 90 * dt; sp.y += dy / d * 90 * dt;
     if (d < 130) {
       sp.state = 'cast'; sp.life = sp.n * .13 + .35;
-      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170); if (t) bolt(t, STRIKER, { from: { x: sp.x, y: sp.y - 12 } }); });
+      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170 * (sp.am || 1)); if (t) bolt(t, STRIKER, { from: { x: sp.x, y: sp.y - 12 } }); });
     }
   }
   S.spirits = S.spirits.filter(sp => sp.life > 0);
@@ -222,7 +222,7 @@ function updSummons(dt) {
     FX({ k: 'icebeam', x1: w.x, y1: w.y - 14, x2: tg.x, y2: tg.y, life: .25 });
     FX({ k: 'ring', x: tg.x, y: tg.y, r: 60, life: .35, col: ICE });
     sfx('hit_blue');
-    eachNear(tg.x, tg.y, 60, e => { chill(e, 2); dmg(e, S.ab * .3, { col: COL.blue }); });
+    eachNear(tg.x, tg.y, 60 * (w.am || 1), e => { chill(e, 2); dmg(e, S.ab * .3, { col: COL.blue }); });
     if (w.ptick <= 0) { w.ptick = 4; addPillar(tg.x, tg.y, 4, 55); }
   }
   S.wizards = S.wizards.filter(w => w.life > 0);

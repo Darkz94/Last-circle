@@ -92,7 +92,7 @@ function chill(e, n) {
 }
 function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
-const boomR = r => r * E('red', 'boomR') / 100;
+const boomR = r => r;   // explosion size is part of ability area now
 function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
@@ -108,7 +108,6 @@ function boom(x, y, rad, amt, col, o) {
   }
   eachNear(x, y, rad, e => {
     const dd = dmg(e, amt, { col, pierce: o.pierce, src: o.src || 'explosion' });
-    if (o.ignite) burn(e, burnFrom(dd));
     if (o.chill) chill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
     if (o.stun) stun(e, o.stun);

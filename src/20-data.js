@@ -59,6 +59,7 @@ const PRIM = [
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
   { k: 'area',    v: 10,  t: v => `+${v}% ability area (max +${AREA_CAP}%)` },
+  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (never below 1s)` },
 ];
 
 // ---- tuning numbers
@@ -82,7 +83,6 @@ const EPASS = {
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
-    { k: 'boomR',   v: 10,  base: 100, cap: 200, u: '%', t: 'explosion size', req: BOOMERS },
   ],
   blue: [
     { k: 'chillCh',   v: 8,   base: 30,  cap: 100, u: '%', t: 'chance to chill on Frost hits' },
@@ -91,7 +91,6 @@ const EPASS = {
     { k: 'freezeDur', v: .15, base: 1.1, cap: 3,   u: 's', t: 'freeze duration' },
     { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: 3,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 30, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
-    { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
     { k: 'strike', v: 10, base: 28,  cap: 128, u: '%', t: 'lightning damage' },

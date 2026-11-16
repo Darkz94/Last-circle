@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 24;
+const GAME_VERSION = 25;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -457,6 +457,7 @@ const PRIM = [
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
   { k: 'area',    v: 10,  t: v => `+${v}% ability area (max +${AREA_CAP}%)` },
+  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (never below 1s)` },
 ];
 
 // ---- tuning numbers
@@ -480,7 +481,6 @@ const EPASS = {
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
-    { k: 'boomR',   v: 10,  base: 100, cap: 200, u: '%', t: 'explosion size', req: BOOMERS },
   ],
   blue: [
     { k: 'chillCh',   v: 8,   base: 30,  cap: 100, u: '%', t: 'chance to chill on Frost hits' },
@@ -489,7 +489,6 @@ const EPASS = {
     { k: 'freezeDur', v: .15, base: 1.1, cap: 3,   u: 's', t: 'freeze duration' },
     { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: 3,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 30, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
-    { k: 'shatterR',  v: 10,  base: 60,  cap: 120, u: '',  t: 'shatter radius', req: ['shatter'] },
   ],
   yellow: [
     { k: 'strike', v: 10, base: 28,  cap: 128, u: '%', t: 'lightning damage' },
@@ -592,33 +591,33 @@ const ABIL = {
     { id: 'blast', name: 'Wildfire', v: [80, 120, 180], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.n[s]} nearby enemies catch fire for ${a.v[s]}% of your ability power`,
       kill(a, s, e) { if (!(e.burnT > 0)) return; shuffle(S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 110)).slice(0, a.n[s]).forEach(o => { burn(o, burnFrom(S.ab * a.v[s] / 100)); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .2, col: FIRE }); }); } },
     { id: 'fireball', name: 'Fireball', v: [3, 2.2, 1.5], r: [55, 70, 90], m: [1.5, 2, 3], d: (a, s) => `Every ${a.v[s]}s hurl a fireball that explodes on the first enemy it hits`,
-      fire(a, s) { const an = aim(), p = S.p; sfx('whoosh'); S.projs.push({ k: 'fireball', x: p.x, y: p.y, vx: Math.cos(an) * 400, vy: Math.sin(an) * 400, life: 1.6, rad: boomR(a.r[s]), dmg: S.ab * a.m[s] }); } },
+      fire(a, s) { const an = aim(), p = S.p; sfx('whoosh'); S.projs.push({ k: 'fireball', x: p.x, y: p.y, vx: Math.cos(an) * 400, vy: Math.sin(an) * 400, life: 1.6, rad: a.r[s] * areaM(), dmg: S.ab * a.m[s] }); } },
     { id: 'bombs', name: 'Bomb Line', v: [5, 4, 3], n: [10, 14, 20], m: [1, 1.3, 1.8], d: (a, s) => `Every ${a.v[s]}s a line of ${a.n[s]} bombs blows up everything in one direction, right across the arena`,
-      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y, dm = S.ab * a.m[s]; for (let i = 0; i < a.n[s]; i++) { const d = 30 + i * 620 / (a.n[s] - 1); later(i * .05, () => boom(ox + Math.cos(an) * d, oy + Math.sin(an) * d, boomR(36), dm, FIRE, { ignite: true, small: true })); } } },
+      fire(a, s) { const an = aim(), ox = S.p.x, oy = S.p.y, dm = S.ab * a.m[s]; for (let i = 0; i < a.n[s]; i++) { const d = 30 + i * 620 / (a.n[s] - 1); later(i * .05, () => boom(ox + Math.cos(an) * d, oy + Math.sin(an) * d, boomR(36), dm, FIRE, { small: true })); } } },
     { id: 'flame', name: 'Flamethrower', v: [4.5, 3.5, 2.5], rg: [120, 150, 185], m: [.2, .3, .45], d: (a, s) => `Every ${a.v[s]}s breathe a cone of fire (${a.rg[s]} range) that ignites all it touches`,
-      fire(a, s) { sfx('flame'); S.flames.push({ t: 0, dur: 1, dir: aim(), rg: a.rg[s], dmg: S.ab * a.m[s], tick: 0 }); } },
+      fire(a, s) { sfx('flame'); S.flames.push({ t: 0, dur: 1, dir: aim(), rg: a.rg[s] * areaM(), dmg: S.ab * a.m[s], tick: 0 }); } },
     { id: 'pyre', name: 'Pyre', v: [20, 35, 60], d: (a, s) => `Burning enemies explode on death for ${a.v[s]}% of their max HP`,
       kill(a, s, e) { if (e.burnT > 0) boom(e.x, e.y, boomR(60), e.maxHp * a.v[s] / 100, FIRE, { pierce: true }); } },
     { id: 'kindle', name: 'Kindling', v: [20, 40, 75], d: (a, s) => `Burning enemies take +${a.v[s]}% damage`,
       mult(a, s, e) { return e.burnT > 0 ? 1 + a.v[s] / 100 : 1; } },
     { id: 'meteor', name: 'Meteor Shower', v: [8, 6, 4], n: [3, 5, 8], m: [1.5, 2, 2.6], d: (a, s) => `Every ${a.v[s]}s ${a.n[s]} meteors crash down on enemies`,
-      fire(a, s) { const dm = S.ab * a.m[s], rr = boomR(55); shuffle(inArena()).slice(0, a.n[s]).forEach((e, i) => { const x = e.x, y = e.y; later(i * .12, () => FX({ k: 'meteor', x, y, r: rr, life: .6 })); later(i * .12 + .6, () => { boom(x, y, rr, dm, FIRE, { ignite: true }); puff(x, y, '#ffb347', 10, 160, .45); }); }); } },
+      fire(a, s) { const dm = S.ab * a.m[s], rr = boomR(55); shuffle(inArena()).slice(0, a.n[s]).forEach((e, i) => { const x = e.x, y = e.y; later(i * .12, () => FX({ k: 'meteor', x, y, r: rr, life: .6 })); later(i * .12 + .6, () => { boom(x, y, rr, dm, FIRE, {}); puff(x, y, '#ffb347', 10, 160, .45); }); }); } },
     { id: 'trail', name: 'Firewalker', v: [1.5, 2.5, 3.5], m: [.25, .4, .6], d: (a, s) => `You leave a trail of fire that burns for ${a.v[s]}s`,
       frame(a, s, dt) { S.trailT -= dt; if (S.trailT <= 0 && S.moving) { S.trailT = .12; if (S.zones.length < 90) pushZone({ k: 'fire', x: S.p.x, y: S.p.y, r: 18, life: a.v[s], max: a.v[s], tick: 0, dps: S.ab * a.m[s] }); } } },
     { id: 'ring', name: 'Ring of Fire', v: [6, 5, 4], rg: [120, 160, 220], m: [.8, 1.1, 1.5], d: (a, s) => `Every ${a.v[s]}s a ring of flame bursts out from you (${a.rg[s]} range)`,
-      fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s], spd: 320, hit: new Set(), dmg: S.ab * a.m[s] }); } },
+      fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s] * areaM(), spd: 320, hit: new Set(), dmg: S.ab * a.m[s] }); } },
     { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .1, d: (a, s) => `Enemies inside a ${a.r[s]} ring around you catch a burn stack worth ${a.v[s] * 6}% of your ability power every ${fmt(auraEvery())}s`,
       fire(a, s) { const tot2 = S.ab * 6 * a.v[s] / 100, iv = auraEvery(); eachNear(S.p.x, S.p.y, a.r[s], e => { if (S.time < (e.auraN || 0)) return; e.auraN = S.time + iv; burn(e, burnFrom(tot2)); }); } },
-    { id: 'phoenix', name: 'Contagion', v: [50, 75, 100], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.v[s]}% of its unburnt fire jumps to each of the ${a.n[s]} nearest enemies`,
+    { id: 'phoenix', name: 'Contagion', v: [50, 50, 50], n: [2, 3, 4], d: (a, s) => `When a burning enemy dies, ${a.v[s]}% of its unburnt fire jumps to each of the ${a.n[s]} nearest enemies`,
       kill(a, s, e) { const rem = burnLeft(e); if (rem <= 0) return; S.enemies.filter(o => o !== e && !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140).sort((p, q) => Math.hypot(p.x - e.x, p.y - e.y) - Math.hypot(q.x - e.x, q.y - e.y)).slice(0, a.n[s]).forEach(o => { burn(o, rem * a.v[s] / 100); FX({ k: 'line', x1: e.x, y1: e.y, x2: o.x, y2: o.y, life: .25, col: FIRE }); }); } },
     { id: 'sprite', name: 'Fire Sprites', v: [8, 6, 4], r: [60, 75, 95], m: [2, 2.6, 3.4], d: (a, s) => `Every ${a.v[s]}s a fire sprite waddles out and hurls itself at the nearest enemy, exploding and setting it ablaze`,
-      fire(a, s) { sfx('summon'); S.sprites.push({ x: S.p.x, y: S.p.y, life: 12, state: 'walk', vx: 0, vy: 0, lt: 0, r: boomR(a.r[s]), dmg: S.ab * a.m[s], a: Math.random() * TAU }); } },
+      fire(a, s) { sfx('summon'); S.sprites.push({ x: S.p.x, y: S.p.y, life: 12, state: 'walk', vx: 0, vy: 0, lt: 0, r: a.r[s] * areaM(), dmg: S.ab * a.m[s], a: Math.random() * TAU }); } },
   ]),
 
   // ------------------------------------------------------------------ FROST: control the fight; damage comes from the cold itself
   blue: defs('blue', [
     { id: 'shatter', name: 'Shatter', v: [8, 12, 18], d: (a, s) => `Frozen enemies shatter on death for ${a.v[s]}% of their max HP (level-ups take it to 30%)`,
-      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, E('blue', 'shatterR'), e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, pierce: true, src: 'shatter' }); } },
+      kill(a, s, e) { if (e.frozen > 0) boom(e.x, e.y, 60, e.maxHp * E('blue', 'shatterPct') / 100, ICE, { chill: 1, pierce: true, src: 'shatter' }); } },
     { id: 'gust', name: 'Frost Gust', v: [5, 4, 3], n: [2, 3, 4], rg: [160, 200, 240], d: (a, s) => `Every ${a.v[s]}s a freezing gust blasts enemies back with ${a.n[s]} chill across a wide cone`,
       fire(a, s) { const p = S.p, an = aim(); sfx('gust'); FX({ k: 'gust', x: p.x, y: p.y, dir: an, arc: Math.PI / 2, r: a.rg[s], life: .45 }); eachNear(p.x, p.y, a.rg[s], e => { if (!inCone(e, p.x, p.y, an, Math.PI / 4, a.rg[s])) return; dmg(e, S.ab * .5, { col: COL.blue }); chill(e, a.n[s]); knock(e, an, 30); }); } },
     { id: 'pillar', name: 'Ice Pillar', v: [7, 6, 4.5], life: [5, 7, 9], d: (a, s) => `Every ${a.v[s]}s raise an ice pillar among the enemies that chills and frost-burns everything near it for ${a.life[s]}s`,
@@ -648,7 +647,7 @@ const ABIL = {
     { id: 'prison', name: 'Ice Prison', v: [10, 8, 6], life: [3, 4, 6], d: (a, s) => `Every ${a.v[s]}s a ring of ice blocks traps the thickest crowd for ${a.life[s]}s`,
       fire(a, s) { const c = densest(undefined, undefined, undefined, 60); if (!c) return; sfx('snap'); const n = 12, rr = 62 * areaM(); for (let i = 0; i < n; i++) { const t = i / n * TAU; S.walls.push({ x: c.x + Math.cos(t) * rr, y: c.y + Math.sin(t) * rr, r: 12, life: a.life[s], max: a.life[s], tick: 0, seed: Math.random() }); } eachNear(c.x, c.y, 55, e => chill(e, 2)); } },
     { id: 'wizard', name: 'Frost Wizards', v: [10, 8, 6], life: [10, 12, 15], d: (a, s) => `Every ${a.v[s]}s a frost wizard joins you for ${a.life[s]}s, chilling groups of enemies and raising ice pillars`,
-      fire(a, s) { if (S.wizards.length >= 3) return; sfx('freeze'); S.wizards.push({ x: S.p.x, y: S.p.y, life: a.life[s], tick: .6, ptick: 2, a: Math.random() * TAU }); } },
+      fire(a, s) { if (S.wizards.length >= 3) return; sfx('freeze'); S.wizards.push({ am: areaM(), x: S.p.x, y: S.p.y, life: a.life[s], tick: .6, ptick: 2, a: Math.random() * TAU }); } },
   ]),
 
   // ------------------------------------------------------------------ LIGHTNING: speed. Hits take a % of the enemy's current HP.
@@ -667,9 +666,9 @@ const ABIL = {
     { id: 'wings', name: 'Wings of Light', v: [10, 18, 30], c: [4, 8, 14], d: (a, s) => `+${a.v[s]}% move speed and +${a.c[s]}% crit chance`,
       stats(a, s, t) { t.speed += a.v[s]; t.crit += a.c[s]; } },
     { id: 'ball', name: 'Ball Lightning', v: [6, 5, 3.5], m: [.3, .4, .55], d: (a, s) => `Every ${a.v[s]}s release a crackling orb that drifts into enemies, zapping everything near it`,
-      fire(a, s) { sfx('zap'); S.orbs.push({ x: S.p.x, y: S.p.y, life: 4, tick: 0, mult: a.m[s] }); } },
+      fire(a, s) { sfx('zap'); S.orbs.push({ am: areaM(), x: S.p.x, y: S.p.y, life: 4, tick: 0, mult: a.m[s] }); } },
     { id: 'rod', name: 'Lightning Rod', v: [8, 6, 4], i: [1, .75, .5], d: (a, s) => `Every ${a.v[s]}s plant a rod that strikes nearby enemies every ${a.i[s]}s`,
-      fire(a, s) { const tg = pick(inArena()), x = tg ? tg.x : rnd(-R / 2, R / 2), y = tg ? tg.y : rnd(-R / 2, R / 2); if (S.rods.length >= 4) S.rods.shift(); S.rods.push({ x, y, life: 5, tick: .2, int: a.i[s] }); } },
+      fire(a, s) { const tg = pick(inArena()), x = tg ? tg.x : rnd(-R / 2, R / 2), y = tg ? tg.y : rnd(-R / 2, R / 2); if (S.rods.length >= 4) S.rods.shift(); S.rods.push({ am: areaM(), x, y, life: 5, tick: .2, int: a.i[s] }); } },
     { id: 'surge', name: 'Surge', v: [3, 5, 8], d: (a, s) => `Lightning kills give +${a.v[s]}% move & attack speed for 3s (stacks to 10)`,
       kill(a, s, e) { if (e.killer === 'lightning') { S.surge.n = Math.min(10, S.surge.n + 1); S.surge.t = 3; } } },
     { id: 'conductor', name: 'Conductor', v: [30, 60, 100], d: (a, s) => `Lightning deals +${a.v[s]}% damage to stunned, chilled or frozen enemies` },
@@ -681,7 +680,7 @@ const ABIL = {
     { id: 'tempest', name: 'Lightning Storm', v: [8, 6, 4], i: [.4, .3, .2], d: (a, s) => `Every ${a.v[s]}s a storm settles over the enemies for 4s, striking inside it every ${a.i[s]}s`,
       fire(a, s) { const tg = pick(inArena()); if (tg) { sfx('gust'); pushZone({ k: 'storm', x: tg.x, y: tg.y, r: 85, life: 4, max: 4, tick: 0, int: a.i[s] }); } } },
     { id: 'spirit', name: 'Storm Spirit', v: [9, 7, 5], n: [4, 5, 7], d: (a, s) => `Every ${a.v[s]}s a storm spirit drifts towards the enemies and calls down ${a.n[s]} rapid strikes before fading`,
-      fire(a, s) { sfx('summon'); S.spirits.push({ x: S.p.x, y: S.p.y, life: 14, state: 'walk', n: a.n[s] }); } },
+      fire(a, s) { sfx('summon'); S.spirits.push({ am: areaM(), x: S.p.x, y: S.p.y, life: 14, state: 'walk', n: a.n[s] }); } },
   ]),
 
   // ------------------------------------------------------------------ EARTH: the tank. Golems, thorns, and defence turned into damage.
@@ -857,7 +856,7 @@ F.magma.frame = (a, s, dt) => {
   S.magmaT = (S.magmaT || 0) - dt; if (S.magmaT > 0) return; S.magmaT = .45;
   for (const g of S.golems) if (!g.thrall && S.zones.length < 90 && Math.hypot(g.vx, g.vy) > 40) pushZone({ k: 'fire', x: g.x, y: g.y, r: 16, life: 2, max: 2, tick: 0, dps: S.ab * .35 });
 };
-F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { ignite: true, small: true, pierce: true }); };
+F.magma.gDie = (a, s, g) => { if (s) boom(g.x, g.y, g.big ? 90 : 60, g.maxHp * .8, FIRE, { small: true, pierce: true }); };
 F.staticice.frame = (a, s, dt) => {
   S.zapT = (S.zapT || 0) - dt; if (S.zapT > 0) return; S.zapT = 1;
   let n = 0;
@@ -899,11 +898,11 @@ F.volcano.frame = (a, s, dt) => {
     if (S.pt.length < 460) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
     if (v.tick > 0) continue;
     v.tick = .28;
-    const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240));
+    const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240 * areaM()));
     if (!t) continue;
     const x = t.x, y = t.y;
     FX({ k: 'warn', x, y, r: 34, life: .3, col: FIRE });
-    later(.3, () => { boom(x, y, 40, S.ab * 1.6 + tot.maxHp * .08, FIRE, { ignite: true, small: true, quiet: true }); const e2 = nearest(x, y, 44); if (e2) bolt(e2, .9, { silent: true, full: true }); });
+    later(.3, () => { boom(x, y, 40, S.ab * 1.6 + tot.maxHp * .08, FIRE, { small: true, quiet: true }); const e2 = nearest(x, y, 44); if (e2) bolt(e2, .9, { silent: true, full: true }); });
   }
   S.vents = S.vents.filter(v => v.life > 0);
 };
@@ -975,7 +974,7 @@ F.starfall.fire = (a, s) => {
   spots.forEach((q, i) => {
     FX({ k: 'ring', x: q.x, y: q.y, r: 75, life: .75, col: FIRE });
     later(.75 + i * .15, () => {
-      boom(q.x, q.y, 75, S.ab * 3 + tot.maxHp * .05, FIRE, { ignite: true, src: 'explosion' });
+      boom(q.x, q.y, 75, S.ab * 3 + tot.maxHp * .05, FIRE, { src: 'explosion' });
       if (s) pushZone({ k: 'fire', x: q.x, y: q.y, r: 42, life: 3, max: 3, tick: 0, dps: S.ab * .6 });
     });
   });
@@ -1032,7 +1031,7 @@ F.cycle.hit = (a, s, w, e, d) => {
     chill(e, 2);
     if (S.time < (e.novaCd || 0)) return;
     e.novaCd = S.time + 2;
-    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { ignite: true, chill: 1, src: 'explosion' });
+    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, src: 'explosion' });
     if (!e.dead && !e.boss && Math.random() < .5) freeze(e);
     shuffle(S.enemies.filter(o => !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140)).slice(0, 3).forEach(o => bolt(o, .8, { noChain: true, full: true }));
   }
@@ -1062,7 +1061,7 @@ F.forge.frame = (a, s, dt) => {
   }
   if (t.spT <= 0) { t.spT = 1; const e2 = nearest(t.x, t.y, 170); if (e2) bolt(e2, .7 * pow, { from: t, noChain: true, full: true }); }
   if (t.hp <= 0) {
-    boom(t.x, t.y, 110, t.maxHp * .6, FIRE, { ignite: true, pierce: true, src: 'golem' });
+    boom(t.x, t.y, 110, t.maxHp * .6, FIRE, { pierce: true, src: 'golem' });
     S.forgeLv = Math.floor(t.lv / 2); S.titan = null; S.forgeCd = 4;
   }
 };
@@ -1172,7 +1171,7 @@ function freshState(sets, tsets, synRoll, bossOrder) {
     rs: { dealt: 0, src: {}, wt: {}, big: 0, bigSrc: '', crits: 0, taken: 0, healed: 0, low: 1, elites: 0, bosses: 0, gold: 0, rerolls: 0, bought: 0, time: 0, strikes: 0, execs: 0, stacks: 0 },
     synRoll, bossOrder, synId: null, synS: 0, synNote: null, arenaR: R, shrink: false, silence: 0, lastBossKey: null,
     p: { x: 0, y: 0, hp: 100, inv: 0, shield: 0, face: 0 },
-    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0, area: 0 },
+    st: { maxHp: 100, flat: 0, dmgPct: 0, crit: 5, critDmg: 50, atkSpd: 0, speed: 0, armor: 0, regen: 0, range: 0, pen: 0, pickup: 0, area: 0, cdr: 0 },
     ep: { red: {}, yellow: {}, blue: {}, green: {} },
     runSets: sets, typeSets: tsets, counts: {}, tcounts: {}, on: {}, mods: [], hk: {}, relics: [], relicOn: {},
     pendingRelic: 0, relicOffer: null,
@@ -1303,7 +1302,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => [0, 1, 2].includes(d.syn[pairKey(a, b)])) && TRIOS.every(t => [0, 1].includes(d.syn['t:' + t.join('+')]));
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, { area: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow);
+  Object.assign(S.st, { area: 0, cdr: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow);
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;
@@ -1413,7 +1412,7 @@ function chill(e, n) {
 }
 function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
-const boomR = r => r * E('red', 'boomR') / 100;
+const boomR = r => r;   // explosion size is part of ability area now
 function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
@@ -1429,7 +1428,6 @@ function boom(x, y, rad, amt, col, o) {
   }
   eachNear(x, y, rad, e => {
     const dd = dmg(e, amt, { col, pierce: o.pierce, src: o.src || 'explosion' });
-    if (o.ignite) burn(e, burnFrom(dd));
     if (o.chill) chill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
     if (o.stun) stun(e, o.stun);
@@ -1655,7 +1653,7 @@ function strike(w, e, dir) {
   // the element's own small effect
   if (w.el === 'red') {
     if (w.evo || Math.random() * 100 < E('red', 'ign') * spreadM) burn(e, burnFrom(dealt));
-    if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { ignite: true, small: true });
+    if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { small: true });
   } else if (w.el === 'yellow') {
     if (Math.random() * 100 < E('yellow', 'strikeCh') * spreadM) bolt(e, 1, { pct: true });
     if (w.evo && Math.random() < .35) bolt(e, 1, { pct: true });
@@ -1880,7 +1878,7 @@ function updProjectiles(dt) {
     if (f.k === 'fireball') {
       if (S.pt.length < 400) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
       let hit = false; grid.near(f.x, f.y, 72, e => { if (!hit && !e.dead && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 8) hit = true; });
-      if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, { ignite: true }); }
+      if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, {}); }
     } else if (f.k === 'boulder') {
       f.rot += dt * 8;
       if (Math.random() < .4) puff(f.x, f.y, '#8a7350', 1, 40, .4);
@@ -1927,10 +1925,10 @@ function updProjectiles(dt) {
     o.life -= dt; o.tick -= dt;
     const tg = nearest(o.x, o.y, 500);
     if (tg) { const a = Math.atan2(tg.y - o.y, tg.x - o.x); o.x += Math.cos(a) * 85 * dt; o.y += Math.sin(a) * 85 * dt; }
-    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75, hit); if (!e) break; hit.add(e); bolt(e, o.mult * STRIKER, { from: o, noChain: true }); } }
+    if (o.tick <= 0) { o.tick = .3; const hit = new Set(); for (let i = 0; i < 3; i++) { const e = nearest(o.x, o.y, 75 * (o.am || 1), hit); if (!e) break; hit.add(e); bolt(e, o.mult * STRIKER, { from: o, noChain: true }); } }
   }
   S.orbs = S.orbs.filter(o => o.life > 0);
-  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110); if (e) bolt(e, STRIKER, { from: { x: rd.x, y: rd.y - 22 } }); } }
+  for (const rd of S.rods) { rd.life -= dt; rd.tick -= dt; if (rd.tick <= 0) { rd.tick = rd.int; const e = nearest(rd.x, rd.y, 110 * (rd.am || 1)); if (e) bolt(e, STRIKER, { from: { x: rd.x, y: rd.y - 22 } }); } }
   S.rods = S.rods.filter(rd => rd.life > 0);
 }
 
@@ -1950,7 +1948,7 @@ function updSummons(dt) {
       sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.lt -= dt;
       if (S.pt.length < 480) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
       let hit = sp.lt <= 0; if (!hit) grid.near(sp.x, sp.y, 72, e => { if (!e.dead && Math.hypot(e.x - sp.x, e.y - sp.y) < e.r + 7) hit = true; });
-      if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, { ignite: true }); sp.life = 0; }
+      if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, {}); sp.life = 0; }
     }
   }
   S.sprites = S.sprites.filter(sp => sp.life > 0);
@@ -1963,7 +1961,7 @@ function updSummons(dt) {
     sp.x += dx / d * 90 * dt; sp.y += dy / d * 90 * dt;
     if (d < 130) {
       sp.state = 'cast'; sp.life = sp.n * .13 + .35;
-      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170); if (t) bolt(t, STRIKER, { from: { x: sp.x, y: sp.y - 12 } }); });
+      for (let i = 0; i < sp.n; i++) later(i * .13, () => { const t = nearest(sp.x, sp.y, 170 * (sp.am || 1)); if (t) bolt(t, STRIKER, { from: { x: sp.x, y: sp.y - 12 } }); });
     }
   }
   S.spirits = S.spirits.filter(sp => sp.life > 0);
@@ -1977,7 +1975,7 @@ function updSummons(dt) {
     FX({ k: 'icebeam', x1: w.x, y1: w.y - 14, x2: tg.x, y2: tg.y, life: .25 });
     FX({ k: 'ring', x: tg.x, y: tg.y, r: 60, life: .35, col: ICE });
     sfx('hit_blue');
-    eachNear(tg.x, tg.y, 60, e => { chill(e, 2); dmg(e, S.ab * .3, { col: COL.blue }); });
+    eachNear(tg.x, tg.y, 60 * (w.am || 1), e => { chill(e, 2); dmg(e, S.ab * .3, { col: COL.blue }); });
     if (w.ptick <= 0) { w.ptick = 4; addPillar(tg.x, tg.y, 4, 55); }
   }
   S.wizards = S.wizards.filter(w => w.life > 0);
@@ -2381,17 +2379,22 @@ function updPlayer(dt) {
   heal((tot.regen + ((S.buff && S.buff.regen) || 0)) * dt);
   if (S.surge.t > 0) { S.surge.t -= dt; if (S.surge.t <= 0) S.surge.n = 0; }
 }
+// a timed ability's cooldown after cooldown reduction; anything slower than 1s can't be pushed below 1s
+const CDR_MIN = 1;
+function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_MIN, base * (1 - Math.min(90, S.st.cdr || 0) / 100)); }
+// cooldown reduction is only offered while at least one timed ability could still get faster
+const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
 function updMods(dt) {
   S.beam = null;
   const hs = S.hk.fire, rate = rel('clock') ? 1.25 : 1, echo = rel('echo');
   if (hs) for (const h of hs) {
-    const a = h.a, cd = a.cd || a.v[h.s];
+    const a = h.a, cd = abilityCd(a, h.s);
     let t = S.timers[a.id]; if (t === undefined) t = cd * .5;
     t -= dt * rate;
     if (t <= 0) { t = cd; inArea(() => { a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }); }
     S.timers[a.id] = t;
   }
-  const fs = S.hk.frame; if (fs) for (const h of fs) h.a.frame(h.a, h.s, dt);
+  const fs = S.hk.frame; if (fs) for (const h of fs) inArea(() => h.a.frame(h.a, h.s, dt));
 }
 function updFx(dt) {
   for (const f of S.fx) f.t += dt;
@@ -2490,7 +2493,7 @@ function rollLevelCards() {
   const cards = [], used = new Set();
   for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
-  const stats = shuffle(PRIM.filter(p => p.k !== 'area' || (S.st.area || 0) < AREA_CAP));   // maxed area leaves the pool
+  const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
   // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
   const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
   if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {
@@ -3102,18 +3105,21 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 24,
+  v: 25,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
     'Ice: Ice Prison traps crowds with a ring of ice',
     "Lightning's automatic strikers hit 10% softer",
     'Wildfire now spreads when a burning enemy dies; burns are reduced by armor; enemy armor blocks at most 80%',
+    'Explosions no longer set enemies on fire; Contagion passes on 50% of the unfinished burn',
+    'Explosion size and shatter radius are now part of ability area, which now also grows projectiles, Volcano and other lasting effects',
+    'New level-up: ability cooldown reduction (timed abilities never go below 1s)',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
   new: ['grace', 'wings', 'prison', 'golems'],
-  changed: ['blast', 'phoenix', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
+  changed: ['blast', 'phoenix', 'syn:volcano', 'combust', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
 };
 const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind !== 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(kind === 'syn' ? 'syn:' + id : id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {

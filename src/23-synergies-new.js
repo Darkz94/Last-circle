@@ -56,7 +56,7 @@ F.starfall.fire = (a, s) => {
   spots.forEach((q, i) => {
     FX({ k: 'ring', x: q.x, y: q.y, r: 75, life: .75, col: FIRE });
     later(.75 + i * .15, () => {
-      boom(q.x, q.y, 75, S.ab * 3 + tot.maxHp * .05, FIRE, { ignite: true, src: 'explosion' });
+      boom(q.x, q.y, 75, S.ab * 3 + tot.maxHp * .05, FIRE, { src: 'explosion' });
       if (s) pushZone({ k: 'fire', x: q.x, y: q.y, r: 42, life: 3, max: 3, tick: 0, dps: S.ab * .6 });
     });
   });
@@ -113,7 +113,7 @@ F.cycle.hit = (a, s, w, e, d) => {
     chill(e, 2);
     if (S.time < (e.novaCd || 0)) return;
     e.novaCd = S.time + 2;
-    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { ignite: true, chill: 1, src: 'explosion' });
+    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, src: 'explosion' });
     if (!e.dead && !e.boss && Math.random() < .5) freeze(e);
     shuffle(S.enemies.filter(o => !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140)).slice(0, 3).forEach(o => bolt(o, .8, { noChain: true, full: true }));
   }
@@ -143,7 +143,7 @@ F.forge.frame = (a, s, dt) => {
   }
   if (t.spT <= 0) { t.spT = 1; const e2 = nearest(t.x, t.y, 170); if (e2) bolt(e2, .7 * pow, { from: t, noChain: true, full: true }); }
   if (t.hp <= 0) {
-    boom(t.x, t.y, 110, t.maxHp * .6, FIRE, { ignite: true, pierce: true, src: 'golem' });
+    boom(t.x, t.y, 110, t.maxHp * .6, FIRE, { pierce: true, src: 'golem' });
     S.forgeLv = Math.floor(t.lv / 2); S.titan = null; S.forgeCd = 4;
   }
 };

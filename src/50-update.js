@@ -43,17 +43,22 @@ function updPlayer(dt) {
   heal((tot.regen + ((S.buff && S.buff.regen) || 0)) * dt);
   if (S.surge.t > 0) { S.surge.t -= dt; if (S.surge.t <= 0) S.surge.n = 0; }
 }
+// a timed ability's cooldown after cooldown reduction; anything slower than 1s can't be pushed below 1s
+const CDR_MIN = 1;
+function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_MIN, base * (1 - Math.min(90, S.st.cdr || 0) / 100)); }
+// cooldown reduction is only offered while at least one timed ability could still get faster
+const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
 function updMods(dt) {
   S.beam = null;
   const hs = S.hk.fire, rate = rel('clock') ? 1.25 : 1, echo = rel('echo');
   if (hs) for (const h of hs) {
-    const a = h.a, cd = a.cd || a.v[h.s];
+    const a = h.a, cd = abilityCd(a, h.s);
     let t = S.timers[a.id]; if (t === undefined) t = cd * .5;
     t -= dt * rate;
     if (t <= 0) { t = cd; inArea(() => { a.fire(a, h.s); if (echo && !a.cd && Math.random() < .2) later(.3, () => a.fire(a, h.s)); }); }
     S.timers[a.id] = t;
   }
-  const fs = S.hk.frame; if (fs) for (const h of fs) h.a.frame(h.a, h.s, dt);
+  const fs = S.hk.frame; if (fs) for (const h of fs) inArea(() => h.a.frame(h.a, h.s, dt));
 }
 function updFx(dt) {
   for (const f of S.fx) f.t += dt;
@@ -152,7 +157,7 @@ function rollLevelCards() {
   const cards = [], used = new Set();
   for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
-  const stats = shuffle(PRIM.filter(p => p.k !== 'area' || (S.st.area || 0) < AREA_CAP));   // maxed area leaves the pool
+  const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
   // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
   const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
   if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {

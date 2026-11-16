@@ -60,7 +60,7 @@ function strike(w, e, dir) {
   // the element's own small effect
   if (w.el === 'red') {
     if (w.evo || Math.random() * 100 < E('red', 'ign') * spreadM) burn(e, burnFrom(dealt));
-    if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { ignite: true, small: true });
+    if (w.evo && Math.random() < .25) boom(e.x, e.y, boomR(55), d * .8, FIRE, { small: true });
   } else if (w.el === 'yellow') {
     if (Math.random() * 100 < E('yellow', 'strikeCh') * spreadM) bolt(e, 1, { pct: true });
     if (w.evo && Math.random() < .35) bolt(e, 1, { pct: true });

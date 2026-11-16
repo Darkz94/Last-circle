@@ -1,1 +1,1 @@
-{ "version": 24, "notes": "Wildfire spreads when a burning enemy dies. Burns are reduced by armor. Enemy armor (bosses too) blocks at most 80%." }
+{ "version": 25, "notes": "Explosions no longer burn. Contagion passes on 50%. Explosion size and shatter radius merged into ability area, which now also grows projectiles, Volcano and lasting effects. New: ability cooldown reduction (min 1s)." }
