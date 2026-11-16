@@ -44,6 +44,7 @@ const statText = (k, v) => `+${fmt(v)}${STAT[k].u} ${STAT[k].t}`;
 function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : w.fused ? 1.15 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
 
 // ---- level-up bonus stats
+const AREA_CAP = 150;   // ability area tops out at +150% (15 picks)
 const PRIM = [
   { k: 'dmgPct',  v: 10,  t: v => `+${v}% damage` },
   { k: 'flat',    v: 2,   t: v => `+${v} flat damage` },
@@ -57,7 +58,7 @@ const PRIM = [
   { k: 'regen',   v: .6,  t: v => `+${v} HP regen / sec` },
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
-  { k: 'area',    v: 10,  t: v => `+${v}% ability area` },
+  { k: 'area',    v: 10,  t: v => `+${v}% ability area (max +${AREA_CAP}%)` },
 ];
 
 // ---- tuning numbers
@@ -78,6 +79,7 @@ const EPASS = {
     { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
     { k: 'burn',    v: 20,  base: 100, cap: 400, u: '%', t: 'burn damage' },
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
+    { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
     { k: 'boomR',   v: 10,  base: 100, cap: 200, u: '%', t: 'explosion size', req: BOOMERS },
   ],

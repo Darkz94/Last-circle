@@ -12,6 +12,7 @@ const AB = {};
 function defs(el, list) { for (const a of list) { a.el = el; AB[a.id] = a; } return list; }
 const pct = x => Math.round(x * 100);
 
+const auraEvery = () => 2 / (1 + E('red', 'auraSpd') / 100);   // Inferno Aura pulse: 2s, down to 1s
 const ABIL = {
   // ------------------------------------------------------------------ FIRE: burning, damage over time, explosions
   red: defs('red', [
@@ -33,8 +34,8 @@ const ABIL = {
       frame(a, s, dt) { S.trailT -= dt; if (S.trailT <= 0 && S.moving) { S.trailT = .12; if (S.zones.length < 90) pushZone({ k: 'fire', x: S.p.x, y: S.p.y, r: 18, life: a.v[s], max: a.v[s], tick: 0, dps: S.ab * a.m[s] }); } } },
     { id: 'ring', name: 'Ring of Fire', v: [6, 5, 4], rg: [120, 160, 220], m: [.8, 1.1, 1.5], d: (a, s) => `Every ${a.v[s]}s a ring of flame bursts out from you (${a.rg[s]} range)`,
       fire(a, s) { sfx('whoosh'); S.rings.push({ x: S.p.x, y: S.p.y, r: 10, max: a.rg[s], spd: 320, hit: new Set(), dmg: S.ab * a.m[s] }); } },
-    { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .25, d: (a, s) => `Every 2s, enemies within ${a.r[s]} range of you burn for ${a.v[s] * 6}% of your ability power (its own burn, not a stack)`,
-      fire(a, s) { const tot2 = S.ab * 6 * a.v[s] / 100; eachNear(S.p.x, S.p.y, a.r[s], e => { if (S.time < (e.auraN || 0)) return; e.auraN = S.time + 2; burn(e, burnFrom(tot2), { aura: true }); }); } },
+    { id: 'inferno', name: 'Inferno Aura', v: [25, 50, 75], r: [70, 90, 115], cd: .1, d: (a, s) => `Enemies inside a ${a.r[s]} ring around you catch a burn stack worth ${a.v[s] * 6}% of your ability power every ${fmt(auraEvery())}s`,
+      fire(a, s) { const tot2 = S.ab * 6 * a.v[s] / 100, iv = auraEvery(); eachNear(S.p.x, S.p.y, a.r[s], e => { if (S.time < (e.auraN || 0)) return; e.auraN = S.time + iv; burn(e, burnFrom(tot2)); }); } },
     { id: 'phoenix', name: 'Phoenix', v: [30, 50, 80], d: (a, s) => `Once per wave, when you would die, explode and revive with ${a.v[s]}% HP`,
       death(a, s) { if (S.phoenixUsed) return false; S.phoenixUsed = true; S.p.hp = tot.maxHp * a.v[s] / 100; S.p.inv = 2; sfx('revive'); boom(S.p.x, S.p.y, 160, S.ab * 4, '#ffb347', { ignite: true }); banner('Phoenix'); return true; } },
     { id: 'sprite', name: 'Fire Sprites', v: [8, 6, 4], r: [60, 75, 95], m: [2, 2.6, 3.4], d: (a, s) => `Every ${a.v[s]}s a fire sprite waddles out and hurls itself at the nearest enemy, exploding and setting it ablaze`,
@@ -166,7 +167,7 @@ const RELICS = [
   { id: 'clock', name: 'Overclock', col: '#ffd23f', d: 'All timed abilities recharge 25% faster' },
   { id: 'hide', name: 'Thick Hide', col: '#c9a25a', d: 'Take 15% less damage from every hit' },
   { id: 'slayer', name: 'Giant Slayer', col: '#ff5a3c', d: '+60% damage to bosses and elites', mult(a, s, e) { return e.boss || e.elite ? 1.6 : 1; } },
-  { id: 'combust', name: 'Combustion', col: '#ff8a2a', d: 'Every new ignite instantly sets off all the burn already on that enemy, then starts a fresh burn' },
+  { id: 'combust', name: 'Combustion', col: '#ff8a2a', d: 'Igniting an enemy that is at max burn stacks detonates them all: it and everything around it take all the burn that was left, then a fresh burn starts' },
   { id: 'vamp', name: 'Vampiric Sigil', col: '#e5484d', d: '+4% life steal', stats(a, s, t) { t.leech += 4; } },
 ];
 const RELIC = {}; for (const r of RELICS) RELIC[r.id] = r;

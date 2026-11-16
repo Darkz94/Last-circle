@@ -49,7 +49,7 @@ function synHtml(roll, counts) {
     return `<div class="cx ${on ? '' : ''}" style="--c:${cols[0]};${on ? 'background:linear-gradient(90deg,' + rgba(cols[0], .16) + ',' + rgba(cols[cols.length - 1], .1) + ');border-color:' + rgba(cols[0], .6) : ''}">${lbl} · <b>${a.name}</b>${on ? ` <span class="rare" style="background:var(--green)">${a.els.length === 3 ? 'ACTIVE' : s ? 'MAJOR' : 'MINOR'}</span>` : ''}<br>${a.els.length === 3 ? `${a.major}.<br><span class="hint">${TRIO_NOTE}.</span>` : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>`;
   };
   let h = PAIRS.map(([x, y]) => { const k = pairKey(x, y); return row(SYN_PAIRS[k][roll[k]], 'Own 2 of each to reveal', S && syn(SYN_PAIRS[k][roll[k]].id) > 0 ? 1 : 0); }).join('');
-  h += '<h3>Trios <span>· own 2 each of three elements</span></h3>' + TRIOS.map(t => row(SYN_TRIOS[t.join('+')], 'Own 2 of each of these three to reveal', 1)).join('');
+  h += '<h3>Trios <span>· own 2 each of three elements</span></h3>' + TRIOS.map(t => row(trioOf(t.join('+'), roll), 'Own 2 of each of these three to reveal', 1)).join('');
   return h;
 }
 function typeSetsHtml(tsets, counts) {

@@ -42,14 +42,15 @@ function updEnemies(dt) {
         if (e.bs) e.bs = e.bs.filter(s => s.left > .01);
         e.burnT = e.bs && e.bs.length ? mx + .001 : 0;
         const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
-        if (d > 0) dmg(e, d * fx2, { col: '#ff8a4a', pierce: true, dot: true, src: 'burn' });
+        if (d > 0) dmg(e, d * fx2 * summerBurn(), { col: '#ff8a4a', pierce: true, dot: true, src: 'burn' });
       }
       if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
       if (e.burnT <= 0) e.bs = [];
       if (e.dead) continue;
     }
     const held = e.frozen > 0 || e.stun > 0;
-    const dx = p.x - e.x, dy = p.y - e.y, d = Math.hypot(dx, dy) || 1;
+    const tgt = tauntFor(e) || p;   // Storm Totems pull enemies onto themselves
+    const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx, dy) || 1;
     let vx = dx / d, vy = dy / d;
     let sm = (e.chill > 0 ? 1 - slow : 1) * ((ff || syn('frostfire2') >= 0) && e.burnT > 0 ? .7 : 1);
     let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1);
@@ -74,6 +75,10 @@ function updEnemies(dt) {
       const mv = bossStep(e, dt, p, held);
       if (mv) { vx = mv.vx; vy = mv.vy; sp = mv.sp * sm; } else sp = 0;
     }
+    if (e.confT > 0 && !e.boss) {   // Blinding Steam: confused enemies wander
+      e.confT -= dt; e.wa = (e.wa === undefined ? Math.random() * TAU : e.wa) + rnd(-4, 4) * dt;
+      vx = Math.cos(e.wa); vy = Math.sin(e.wa); sp *= .6;
+    }
     e.x += vx * sp * dt + e.kx * Math.min(1, dt * 12); e.y += vy * sp * dt + e.ky * Math.min(1, dt * 12);
     e.kx *= Math.max(0, 1 - dt * 12); e.ky *= Math.max(0, 1 - dt * 12);
     const far = Math.hypot(e.x, e.y); if (far > SPAWN_R + 40) { e.x *= (SPAWN_R + 40) / far; e.y *= (SPAWN_R + 40) / far; }   // nothing gets lost outside
@@ -81,7 +86,8 @@ function updEnemies(dt) {
       const bx = e.x - b.x, by = e.y - b.y, bd = Math.hypot(bx, by) || 1, mn = e.r + b.r;
       if (bd < mn) { e.x = b.x + bx / bd * mn; e.y = b.y + by / bd * mn; }
     }
-    if (!held && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
+    if (tgt !== p) { if (!held && !(e.confT > 0) && e.dmg > 0 && d < e.r + tgt.r && e.atkCd <= 0) { e.atkCd = .9; tgt.hp -= e.dmg * armRed(tot.armor); } }
+    else if (!held && !(e.confT > 0) && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
   }
   // keep enemies from stacking, and let fire jump between touching enemies
   S.spreadT -= dt;

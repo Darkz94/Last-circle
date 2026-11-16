@@ -36,6 +36,7 @@ function dmg(e, amt, o) {
     const hs = S.hk.mult; if (hs) for (const h of hs) m *= h.a.mult(h.a, h.s, e);
     d *= m;
     if (!o.pierce) d = Math.max(1, d * armRed(Math.max(0, e.armor - tot.pen)));
+    if (e.confT > 0) d *= 1.15;   // confused enemies take more
   }
   const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
   e.hp -= d; e.hitT = .12;
@@ -61,12 +62,15 @@ function burn(e, total, o) {
   if (!e.bs) e.bs = [];
   const aura = !!(o && o.aura);
   if (!aura) {
-    if (rel('combust')) {
-      // Combustion: every new ignite sets off the fire already on the enemy all at once
-      const rem = burnLeft(e);
-      if (rem > 0) { e.bs = []; dmg(e, rem, { col: '#ffb347', pierce: true, dot: true, src: 'burn', crit: true }); puff(e.x, e.y, '#ffb347', 6, 140, .35); if (e.dead) return; }
-    } else if (e.bs.reduce((n, s) => n + (s.aura ? 0 : 1), 0) >= E('red', 'bstack')) return;
+    if (e.bs.reduce((n, s) => n + (s.aura ? 0 : 1), 0) >= E('red', 'bstack')) {
+      if (!rel('combust')) return;   // full: new ignites fizzle
+      // Combustion: an ignite on a fully stacked enemy detonates every stack at once, hitting it and everything
+      // around it for all the burn that was left, then the new ignite starts a fresh stack
+      const rem = burnLeft(e); e.bs = []; e.burnT = 0;
+      if (rem > 0) { boom(e.x, e.y, 70, rem, '#ffb347', { pierce: true, src: 'burn' }); if (e.dead) return; }
+    }
   }
+  if (isCold(e)) steamCloud(e);   // Blinding Steam
   if (e.burnT <= 0) { sfx('burn'); e.burnTick = 0; }
   const life = burnLife();
   e.bs.push({ left: total, rate: total / life, aura });
@@ -200,6 +204,8 @@ function hurt(d, src) {
   if (p.inv > 0) return;
   d = Math.max(1, d * armRed(tot.armor + ((S.buff && S.buff.armor) || 0)));
   if (rel('hide')) d *= .85;
+  d = barrierAbsorb(d);
+  if (d <= 0) { p.inv = .25; return; }
   p.hp -= d; S.rs.taken += d; if (p.hp > 0) S.rs.low = Math.min(S.rs.low, p.hp / tot.maxHp); p.inv = .4; S.shake = Math.min(7, S.shake + 4); S.hurtFlash = .25;
   sfx('hurt'); hitstop(.045);
   addText(p.x, p.y - 20, d, '#ff6b6b', false);

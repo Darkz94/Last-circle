@@ -151,7 +151,7 @@ function rollLevelCards() {
   const cards = [], used = new Set();
   for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
-  const stats = shuffle([...PRIM]);
+  const stats = shuffle(PRIM.filter(p => p.k !== 'area' || (S.st.area || 0) < AREA_CAP));   // maxed area leaves the pool
   // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
   const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
   if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {
