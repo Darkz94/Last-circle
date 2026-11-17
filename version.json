@@ -1,1 +1,1 @@
-{ "version": 27, "notes": "Pyre, Shatter and Thermal Shock now 2-8% of enemy HP through armor. Thorns grow with the wave and damage %, crit from bonus armor/HP, pen from regen. Flat damage level-ups +10%." }
+{ "version": 28, "notes": "Life steal only from weapon hits; new Omnivamp relic. Earth weapons take 25% of thorn stats (Thornblades: 45/65/80%). Earth defensive gains trimmed; base max HP and armor picks +20%." }

@@ -1,7 +1,9 @@
 // ===== weapons (melee, auto-attacking) and golems
 const wName = w => `${w.evo ? EVO[w.el] : ADJ[w.el]} ${TYPES[w.type].n}`;
+// Earth weapons borrow a share of your thorn stats: 25%, or more with Thornblades (never 100%)
+const thornShare = w => w.el === 'green' && tot.thornFlat > 0 ? (sv('brood') || 25) / 100 : 0;
 function weaponDmg(w) {
-  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) + tot.flat) * (1 + tot.dmgPct / 100);
+  let d = (TYPES[w.type].dmg * TM[w.tier] * (w.evo ? 1.5 : w.fused ? 1.35 : 1) + tot.flat + tot.thornFlat * thornShare(w)) * (1 + tot.dmgPct / 100);
   if (w.el === 'yellow') d *= YEL_DMG;
   if (S.buff && S.buff.dmg) d *= 1 + S.buff.dmg;
   return d;
@@ -45,9 +47,10 @@ function strike(w, e, dir) {
   if (w.evo && w.el === 'green') d += tot.maxHp * .03;
   S.hitN++;
   const tenth = rel('tenth') && S.hitN % 10 === 0;
-  const crit = tenth || Math.random() * 100 < tot.crit;
-  if (crit) { d *= tot.critMult + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
-  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon' });
+  const tk = thornShare(w);
+  const crit = tenth || Math.random() * 100 < tot.crit + tot.thornCrit * tk;
+  if (crit) { d *= tot.critMult + (tot.thornCritM - 1) * tk + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
+  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon', pen: tot.thornPen * tk });
   S.rs.wt[ty] = (S.rs.wt[ty] || 0) + dealt; if (crit) S.rs.crits++;
   if (tot.leech) heal(dealt * tot.leech / 100);
   if (ty === 'dagger' && !e.dead) {

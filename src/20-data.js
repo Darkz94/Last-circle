@@ -50,8 +50,8 @@ const PRIM = [
   { k: 'flat',    v: 2.2, t: v => `+${v} flat damage` },
   { k: 'crit',    v: 4,   t: v => `+${v}% crit chance` },
   { k: 'critDmg', v: 20,  t: v => `+${v}% crit damage` },
-  { k: 'maxHp',   v: 15,  t: v => `+${v} max HP` },
-  { k: 'armor',   v: 2,   t: v => `+${v} armor` },
+  { k: 'maxHp',   v: 18,  t: v => `+${v} max HP` },
+  { k: 'armor',   v: 2.4, t: v => `+${v} armor` },
   { k: 'pen',     v: 2,   t: v => `+${v} armor penetration` },
   { k: 'atkSpd',  v: 10,  t: v => `+${v}% attack speed` },
   { k: 'speed',   v: 8,   t: v => `+${v}% move speed` },
@@ -66,7 +66,7 @@ const PRIM = [
 const SUMHP = [22, 42, 74, 140];      // golem base HP by Earth weapon tier
 const SUM_CD = 4;                     // seconds between golem summons per Earth weapon
 const THF = [8, 14, 22, 36];           // flat thorn damage per Earth weapon, by tier
-const EHP = [10, 16, 24, 36];   // Earth weapons: max HP by tier        // max HP per Earth weapon, by tier
+const EHP = [7, 11, 16, 24];   // Earth weapons: max HP by tier        // max HP per Earth weapon, by tier
 const YEL_SPD = 1.4, YEL_DMG = .75;   // Lightning weapons: faster, softer
 const GOLD_TO_XP = .5;
 
@@ -102,9 +102,9 @@ const EPASS = {
     { k: 'lstun',  v: 4,  base: 0,   cap: 40,  u: '%', t: 'chance for lightning to stun' },
   ],
   green: [
-    { k: 'ehp',       v: 20, base: 0,   cap: 1e9, u: '',  t: 'max HP (no limit)' },
-    { k: 'earmor',    v: 2,  base: 0,   cap: 1e9, u: '',  t: 'armor (no limit)' },
-    { k: 'eregen',    v: .6, base: 0,   cap: 30,  u: '',  t: 'HP regen / sec' },
+    { k: 'ehp',       v: 12, base: 0,   cap: 1e9, u: '',  t: 'max HP (no limit)' },
+    { k: 'earmor',    v: 1.2, base: 0,   cap: 1e9, u: '',  t: 'armor (no limit)' },
+    { k: 'eregen',    v: .4, base: 0,   cap: 30,  u: '',  t: 'HP regen / sec' },
     { k: 'shp',       v: 15, base: 100, cap: 400, u: '%', t: 'golem HP', req: GOLEMERS },
     { k: 'sspd',      v: 10, base: 100, cap: 200, u: '%', t: 'golem speed' , req: GOLEMERS },
     { k: 'srate',     v: 10, base: 100, cap: 250, u: '%', t: 'summon rate' , req: GOLEMERS },

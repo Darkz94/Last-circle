@@ -114,12 +114,11 @@ const ABIL = {
 
   // ------------------------------------------------------------------ EARTH: the tank. Golems, thorns, and defence turned into damage.
   green: defs('green', [
-    { id: 'bark', name: 'Ironbark', v: [3, 5, 8], d: (a, s) => `Every wave you clear gives +${a.v[s]}% max HP for the rest of the run, with no limit`,
+    { id: 'bark', name: 'Ironbark', v: [2, 3, 5], d: (a, s) => `Every wave you clear gives +${a.v[s]}% max HP for the rest of the run, with no limit`,
       stats(a, s, t) { t.hpMul *= 1 + (S.grow.hp || 0) * a.v[s] / 100; } },
     { id: 'over', name: 'Stoneheart', v: [1, 2, 3], d: (a, s) => `Every wave you clear gives +${a.v[s]} armor for the rest of the run, with no limit`,
       stats(a, s, t) { t.armor += (S.grow.arm || 0) * a.v[s]; } },
-    { id: 'brood', name: 'Thornstrike', v: [40, 70, 100], d: (a, s) => `Every weapon hit also deals ${a.v[s]}% of your thorn damage`,
-      hit(a, s, w, e) { if (!e.dead) thorns(e, a.v[s] / 100); } },
+    { id: 'brood', name: 'Thornblades', v: [45, 65, 80], d: (a, s) => `Earth weapons take ${a.v[s]}% of your thorn stats (instead of 25%): flat thorns as flat damage, plus thorn crit chance, crit damage and penetration` },
     { id: 'thorn', name: 'Bloodstone', v: [3, 5, 8], d: (a, s) => `Gain thorn damage equal to ${a.v[s]}% of your max HP`,
       stats(a, s, t) { t.thornFromHp = (t.thornFromHp || 0) + a.v[s] / 100; } },
     { id: 'ancient', name: 'Aftershock', v: [15, 25, 40], d: (a, s) => `When you're hit, the ground answers: a shockwave deals ${a.v[s]}% of your max HP to enemies around you`,
@@ -177,6 +176,7 @@ const RELICS = [
   { id: 'hide', name: 'Thick Hide', col: '#c9a25a', d: 'Take 15% less damage from every hit' },
   { id: 'slayer', name: 'Giant Slayer', col: '#ff5a3c', d: '+60% damage to bosses and elites', mult(a, s, e) { return e.boss || e.elite ? 1.6 : 1; } },
   { id: 'combust', name: 'Combustion', col: '#ff8a2a', d: 'Igniting an enemy that is at max burn stacks detonates them all: it and everything around it take all the burn that was left, then a fresh burn starts' },
+  { id: 'omni', name: 'Omnivamp', col: '#b0102c', d: 'Heal for 1% of all damage you deal, from any source (up to 4% of max HP per second)' },
   { id: 'vamp', name: 'Vampiric Sigil', col: '#e5484d', d: '+4% life steal', stats(a, s, t) { t.leech += 4; } },
 ];
 const RELIC = {}; for (const r of RELICS) RELIC[r.id] = r;
