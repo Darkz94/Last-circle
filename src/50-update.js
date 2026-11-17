@@ -155,12 +155,12 @@ function statCard(pr) {
 }
 function rollLevelCards() {
   const cards = [], used = new Set();
-  for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
+  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
   const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
-  // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
+  // combo level-ups: in a duo or trio build, every 5th level offers cards that upgrade every element of the combo at once
   const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
-  if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {
+  if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 5 === 0) {
     while (cards.length < 3) {
       const parts = combo.map(c => { const f = eligible(c).filter(d => !used.has(c + d.k)); if (!f.length) return null; const d = pick(f); used.add(c + d.k); return { c, d }; }).filter(Boolean);
       if (parts.length < 2) break;

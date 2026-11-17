@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 28,
+  v: 29,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -125,6 +125,7 @@ const PATCH = {
     'Life steal only works on weapon hits; new Omnivamp relic heals from all damage',
     'Earth weapons take 25% of your thorn stats; Thornstrike became Thornblades (45/65/80%)',
     "Earth's defensive level-ups, Ironbark and Earth weapon HP trimmed; base max HP and armor picks +20%",
+    'Combo level-ups now come every 5th level instead of every 3rd; you can keep only one card at a time',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
@@ -158,7 +159,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 3rd level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -303,7 +304,7 @@ function act(a, arg) {
   if (a === 'perk') { choosePerk(+arg); return; }
   if (a === 'relic') { takeRelic(arg); return; }
   if (a === 'lvreroll') { if (S.lvRerolls > 0) { S.lvRerolls--; sfx('click'); S.lockedCards = S.perkOffer.filter(c => c.locked).map(c => ({ ...c, locked: false })); S.perkOffer = rollLevelCards(); renderLevelUp(); } return; }
-  if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { c.locked = !c.locked; sfx('click'); renderLevelUp(); } return; }
+  if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { const on = !c.locked; S.perkOffer.forEach(x => { x.locked = false; }); c.locked = on; sfx('click'); renderLevelUp(); } return; }   // only one card can be kept
   if (S.phase !== 'shop') return;
   const g = S.gold;
   if (a === 'next') { startWave(); return; }

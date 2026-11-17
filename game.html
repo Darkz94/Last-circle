@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 28;
+const GAME_VERSION = 29;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -2500,12 +2500,12 @@ function statCard(pr) {
 }
 function rollLevelCards() {
   const cards = [], used = new Set();
-  for (const lc of S.lockedCards) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
+  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
   const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
-  // combo level-ups: in a duo or trio build, every 3rd level offers cards that upgrade every element of the combo at once
+  // combo level-ups: in a duo or trio build, every 5th level offers cards that upgrade every element of the combo at once
   const combo = ORDER.filter(c => (S.counts[c] || 0) >= 2);
-  if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 3 === 0) {
+  if (combo.length >= 2 && (S.level - S.pendingLv + 1) % 5 === 0) {
     while (cards.length < 3) {
       const parts = combo.map(c => { const f = eligible(c).filter(d => !used.has(c + d.k)); if (!f.length) return null; const d = pick(f); used.add(c + d.k); return { c, d }; }).filter(Boolean);
       if (parts.length < 2) break;
@@ -3114,7 +3114,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 28,
+  v: 29,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3131,6 +3131,7 @@ const PATCH = {
     'Life steal only works on weapon hits; new Omnivamp relic heals from all damage',
     'Earth weapons take 25% of your thorn stats; Thornstrike became Thornblades (45/65/80%)',
     "Earth's defensive level-ups, Ironbark and Earth weapon HP trimmed; base max HP and armor picks +20%",
+    'Combo level-ups now come every 5th level instead of every 3rd; you can keep only one card at a time',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
@@ -3164,7 +3165,7 @@ function renderLevelUp() {
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds a card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 3rd level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -3309,7 +3310,7 @@ function act(a, arg) {
   if (a === 'perk') { choosePerk(+arg); return; }
   if (a === 'relic') { takeRelic(arg); return; }
   if (a === 'lvreroll') { if (S.lvRerolls > 0) { S.lvRerolls--; sfx('click'); S.lockedCards = S.perkOffer.filter(c => c.locked).map(c => ({ ...c, locked: false })); S.perkOffer = rollLevelCards(); renderLevelUp(); } return; }
-  if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { c.locked = !c.locked; sfx('click'); renderLevelUp(); } return; }
+  if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { const on = !c.locked; S.perkOffer.forEach(x => { x.locked = false; }); c.locked = on; sfx('click'); renderLevelUp(); } return; }   // only one card can be kept
   if (S.phase !== 'shop') return;
   const g = S.gold;
   if (a === 'next') { startWave(); return; }
