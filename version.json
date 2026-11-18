@@ -1,1 +1,1 @@
-{ "version": 34, "notes": "Endless reworked: enemy health +5%/wave, armor capped at 80% block, up to 220 faster enemies on screen. Penetration removes at most half of enemy armor. Smoother drawing in big crowds." }
+{ "version": 35, "notes": "Enemy traits (Bulwark, Phased, Warded). Crowd-control immunity after freeze/stun/root. Spear damage falls off along the line; swords alternate stab and slash. Penetration can push enemies into negative armor." }

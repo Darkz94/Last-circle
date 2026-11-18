@@ -112,6 +112,12 @@ function draw() {
 
   // ---- enemies and structures
   for (const e of S.enemies) drawEnemy(c, e, T);
+  for (const e of S.enemies) if (e.res && !e.dead) {   // trait markers
+    const Rz = RESIST[e.res], rr = e.r + 5; c.strokeStyle = Rz.col; c.lineWidth = 2;
+    if (e.res === 'bulwark') { c.beginPath(); for (let i = 0; i < 6; i++) { const t = i / 6 * TAU; c[i ? 'lineTo' : 'moveTo'](e.x + Math.cos(t) * rr, e.y + Math.sin(t) * rr); } c.closePath(); c.stroke(); }
+    else if (e.res === 'phased') { c.setLineDash([3, 4]); c.beginPath(); c.arc(e.x, e.y, rr, T * 2, T * 2 + TAU); c.stroke(); c.setLineDash([]); }
+    else { c.beginPath(); c.arc(e.x, e.y, rr, 0, TAU); c.stroke(); c.fillStyle = Rz.col; for (let i = 0; i < 3; i++) { const t = T * 1.5 + i / 3 * TAU; c.beginPath(); c.arc(e.x + Math.cos(t) * rr, e.y + Math.sin(t) * rr, 2, 0, TAU); c.fill(); } }
+  }
   for (const pi of S.pillars) { c.globalAlpha = Math.min(1, pi.life); drawCrystal(c, pi.x, pi.y, 22, 9); c.globalAlpha = 1; }
   drawOrbs(c, T);
   for (const b of S.walls) { c.globalAlpha = Math.min(1, b.life * 2); drawCrystal(c, b.x, b.y, 15 + b.seed * 6, b.r); c.globalAlpha = 1; }

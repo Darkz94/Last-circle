@@ -4,9 +4,9 @@
 const TYPES = {
   dagger: { n: 'Dagger', cd: .34, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab', role: 'On-hit trigger', trait: 'Bleed: every 5th stab on the same enemy deals 30% of the last 5 stabs again',
             fav: ['atkSpd', 'crit', 'critDmg', 'leech', 'speed'] },
-  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Balanced: +15% damage, and its own stats roll 20% stronger', fav: [] },
+  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Balanced: +15% damage and 20% stronger stats; alternates a stab at the nearest enemy and a slash at the biggest group', fav: [] },
   axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
-  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
+  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage near the tip; the first enemy in the line takes 130%, each one behind it 40% less', fav: ['range', 'pen', 'flat', 'stun'] },
   shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor and always knocks back',
             fav: ['armor', 'maxHp', 'regen', 'knock', 'stun'] },
 };
@@ -87,8 +87,8 @@ const EPASS = {
   blue: [
     { k: 'chillCh',   v: 8,   base: 30,  cap: 100, u: '%', t: 'chance to chill on Frost hits' },
     { k: 'slow',      v: 5,   base: 35,  cap: 80,  u: '%', t: 'chill slow' },
-    { k: 'ccDur',     v: 10,  base: 100, cap: 200, u: '%', t: 'stun & root duration' },
-    { k: 'freezeDur', v: .15, base: 1.1, cap: 3,   u: 's', t: 'freeze duration' },
+    { k: 'ccDur',     v: 10,  base: 100, cap: 300, u: '%', t: 'stun & root duration' },
+    { k: 'freezeDur', v: .15, base: 1.1, cap: 4.5, u: 's', t: 'freeze duration' },
     { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: .5,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 8, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
   ],
@@ -153,7 +153,7 @@ function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
 // armor is a % reduction for everyone: armor / (armor + ARM_K). 25 armor = 33% less damage, 50 = 50%, 100 = 67%.
 const ARM_K = 50;
-const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1;   // enemies: damage multiplier left after armor (blocks at most 80%)
+const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1 + Math.min(.5, -a / 100);   // negative armor: +1% damage per point (max +50%)   // enemies: damage multiplier left after armor (blocks at most 80%)
 // you: armor climbs quickly to a 70% soft cap (30 armor), then slowly to an 80% hard cap (100 armor)
 const ARM_SOFT = 30, ARM_HARD = 100;
 const armCap = () => S && sv('over') ? .85 : .8;   // Stoneheart lifts the hard cap
@@ -161,7 +161,15 @@ const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .
 const playerArm = a => 1 - armBlock(a);
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 const ENEMY_ARM_MAX = 200;
-const effArmor = (arm, pen) => Math.max(arm * .5, arm - pen);   // penetration removes at most half an enemy's armor   // 200 armor blocks 80%: enemy armor never grows past it
+// enemy traits: some normal enemies resist one kind of damage and are weak to its opposite
+const RESIST = {
+  bulwark: { n: 'Bulwark', col: '#b8c0d0', aoe: .5, single: 1.5, d: 'Takes half damage from area hits (explosions, slashes, novas); takes +50% from single-target hits' },
+  phased:  { n: 'Phased',  col: '#9be8ff', single: .5, aoe: 1.5, d: 'Takes half damage from single-target hits (stabs, strikes, bolts); takes +50% from area hits' },
+  warded:  { n: 'Warded',  col: '#c79bff', ability: .5, weapon: 1.5, d: 'Takes half damage from abilities and summons; takes +50% from weapon hits' },
+};
+const RESIST_KEYS = Object.keys(RESIST);
+const resistChance = w => w < 6 ? 0 : Math.min(.35, (w - 5) * .015);   // 1.5% a wave from wave 6, up to 35%
+const effArmor = (arm, pen) => arm - pen;   // can go negative   // 200 armor blocks 80%: enemy armor never grows past it
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 18 : 0)); }   // endless: more enemies, not tougher ones
 // endless enemies also move a little faster each wave (up to +40%)
 const endlessSpd = () => S.wave > 20 ? Math.min(1.4, 1 + (S.wave - 20) * .02) : 1;

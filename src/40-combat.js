@@ -37,6 +37,11 @@ function dmg(e, amt, o) {
     d *= m;
     if (!o.pierce) d = Math.max(1, d * armRed(effArmor(e.armor, tot.pen + (o.pen || 0))));
     if (e.confT > 0) d *= 1.15;   // confused enemies take more
+    if (e.res && !o.dot && o.src !== 'thorns') {   // enemy traits
+      const Rz = RESIST[e.res], src = o.src || 'ability', weaponHit = src === 'weapon' || src === 'bleed';
+      d *= (o.aoe || AOE_ON > 0) ? (Rz.aoe || 1) : (Rz.single || 1);
+      d *= weaponHit ? (Rz.weapon || 1) : (Rz.ability || 1);
+    }
   }
   const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
   if (d > 0 && rel('omni')) { const room = tot.maxHp * .04 - (S.omniS || 0); if (room > 0) { const h = Math.min(room, d * .01); S.omniS = (S.omniS || 0) + h; heal(h); } }
@@ -78,8 +83,10 @@ function burn(e, total, o) {
   if (e.bs.length > S.rs.stacks) S.rs.stacks = e.bs.length;
   e.burnT = Math.max(e.burnT, life);
 }
+// after a freeze, stun or root ends, the enemy can't be frozen, stunned or rooted again for 2.5s
+const CC_IMMUNE = 2.5;
 function freeze(e) {
-  if (e.dead || e.fixed) return;
+  if (e.dead || e.fixed || S.time < (e.ccImm || 0)) return;
   e.chill = 0;
   e.frozen = E('blue', 'freezeDur') * (e.boss || e.elite ? .35 : 1);
   sfx('freeze');
@@ -91,10 +98,11 @@ function chill(e, n) {
   e.chill += n; e.chillT = 2.6;
   if (e.chill >= 4) freeze(e);
 }
-function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
+function stun(e, t) { if (e.dead || S.time < (e.ccImm || 0)) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
 const boomR = r => r;   // explosion size is part of ability area now
-function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
+let AOE_ON = 0;   // damage dealt inside an area check counts as area damage
+function eachNear(x, y, r, fn) { r *= areaM(); AOE_ON++; try { grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); } finally { AOE_ON--; } }
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
   o = o || NO;

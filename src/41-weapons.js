@@ -19,27 +19,37 @@ function weaponAttack(w) {
   const T = TYPES[w.type], p = S.p, range = T.range * tot.rangeM;
   const tg = nearest(p.x, p.y, range, null, true);
   if (!tg) return false;
-  const dir = Math.atan2(tg.y - p.y, tg.x - p.x);
+  let dir = Math.atan2(tg.y - p.y, tg.x - p.x);
+  // swords alternate: a stab at the nearest enemy, then a slash aimed at the biggest group in reach
+  let kind = T.kind;
+  if (w.type === 'sword') {
+    w.alt = !w.alt;
+    if (w.alt) kind = 'stab';
+    else { let best = tg, bn = -1; grid.near(p.x, p.y, range + 40, e => { if (e.dead || Math.hypot(e.x - p.x, e.y - p.y) > range + e.r) return; let n = 0; grid.near(e.x, e.y, 70, o => { if (!o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 60) n++; }); if (n > bn) { bn = n; best = e; } }); dir = Math.atan2(best.y - p.y, best.x - p.x); }
+  }
   w.anim = 1; w.dir = dir;
   let targets;
-  if (T.kind === 'stab') targets = [tg];
+  if (kind === 'stab') targets = [tg];
   else {
     targets = [];
     const cs = Math.cos(dir), sn = Math.sin(dir), half = (T.arc || 0) / 2 * Math.PI / 180;
     grid.near(p.x, p.y, range + 64, e => {
       if (e.dead) return;
-      if (T.kind === 'arc') { if (inCone(e, p.x, p.y, dir, half, range)) targets.push(e); }
+      if (kind === 'arc') { if (inCone(e, p.x, p.y, dir, half, range)) targets.push(e); }
       else { const dx = e.x - p.x, dy = e.y - p.y, along = dx * cs + dy * sn, perp = Math.abs(-dx * sn + dy * cs); if (along > -e.r && along < range + e.r && perp < 11 + e.r) targets.push(e); }
     });
     if (!targets.length) targets = [tg];
   }
-  FX({ k: T.kind === 'arc' ? 'swing' : 'thrust', x: p.x, y: p.y, dir, arc: (T.arc || 0) * Math.PI / 180, r: range, col: COL[w.el], life: T.kind === 'arc' ? .18 : .13, evo: w.evo });
+  FX({ k: kind === 'arc' ? 'swing' : 'thrust', x: p.x, y: p.y, dir, arc: (T.arc || 0) * Math.PI / 180, r: range, col: COL[w.el], life: kind === 'arc' ? .18 : .13, evo: w.evo });
   sfx('swing'); sfx('hit_' + w.el);
-  for (const e of targets) strike(w, e, dir);
+  // spears: the first enemy in the line takes 130%, each one behind it 40% less than the last
+  if (w.type === 'spear' && targets.length > 1) targets.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+  const area = targets.length > 1 || kind === 'arc';   // counts as area damage for enemy resistances
+  targets.forEach((e, i) => strike(w, e, dir, w.type === 'spear' ? 1.3 * Math.pow(.6, i) : 1, area && !(w.type === 'spear' && i === 0)));
   return true;
 }
-function strike(w, e, dir) {
-  let d = weaponDmg(w);
+function strike(w, e, dir, mult, aoe) {
+  let d = weaponDmg(w) * (mult || 1);
   const ty = w.type, spreadM = ty === 'axe' ? 1.5 : 1;   // Status spreader: axes apply their element 50% more often
   if (ty === 'spear' && Math.hypot(e.x - S.p.x, e.y - S.p.y) - e.r > TYPES.spear.range * tot.rangeM * .55) d *= 1.25;   // Reach
   if (ty === 'sword') d *= 1.15;   // Balanced
@@ -50,7 +60,7 @@ function strike(w, e, dir) {
   const tk = thornShare(w);
   const crit = tenth || Math.random() * 100 < tot.crit + tot.thornCrit * tk;
   if (crit) { d *= tot.critMult + (tot.thornCritM - 1) * tk + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
-  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon', pen: tot.thornPen * tk });
+  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon', pen: tot.thornPen * tk, aoe });
   S.rs.wt[ty] = (S.rs.wt[ty] || 0) + dealt; if (crit) S.rs.crits++;
   if (tot.leech) heal(dealt * tot.leech / 100);
   if (ty === 'dagger' && !e.dead) {

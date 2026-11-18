@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 34,
+  v: 35,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -129,7 +129,10 @@ const PATCH = {
     'Endless Overtime: from wave 21, a wave still going after 20s speeds its enemies up every 10s',
     'From wave 30 enemies can pile up to about 10 deep, and enemies that reach you attack faster (0.55s, down to 0.35s)',
     'Endless: enemy health grows 5% a wave (was 31%), enemy armor stops at 80% block, more enemies on screen (220) that move a little faster each wave',
-    'Penetration can remove at most half of an enemy\'s armor',
+    'Penetration past an enemy\'s armor counts as negative armor: +1% damage per point (up to +50%)',
+    'Spears: first enemy in the line takes 130%, each one behind 40% less; swords alternate stab and slash at the biggest group',
+    'After a freeze, stun or root ends, that enemy is immune to them for 2.5s; freeze and stun duration caps raised',
+    'New enemy traits from wave 6: Bulwark (resists area), Phased (resists single-target), Warded (resists abilities) — each weak to the opposite',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
@@ -148,6 +151,7 @@ function codexHtml() {
   for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3><p class="hint" style="margin:-4px 0 8px">${ELEM_ID[c]}</p>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   const allSyn = Object.values(SYN);
   h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b>${patchTag(a.id, 'syn')} <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${a.els.length === 3 ? synText(a, 1) : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
+  h += `<h3>Enemy traits</h3><p class="hint" style="margin:-4px 0 8px">From wave 6 some enemies carry a trait, marked by a ring.</p>` + RESIST_KEYS.map(k => `<div class="cx" style="--c:${RESIST[k].col}"><b>${RESIST[k].n}</b><br>${RESIST[k].d}</div>`).join('');
   h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b>${patchTag(r.id)}<br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   return h;
 }

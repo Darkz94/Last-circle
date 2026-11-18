@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 34;
+const GAME_VERSION = 35;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -402,9 +402,9 @@ const sfx = (n, p) => AU.play(n, p);
 const TYPES = {
   dagger: { n: 'Dagger', cd: .34, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab', role: 'On-hit trigger', trait: 'Bleed: every 5th stab on the same enemy deals 30% of the last 5 stabs again',
             fav: ['atkSpd', 'crit', 'critDmg', 'leech', 'speed'] },
-  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Balanced: +15% damage, and its own stats roll 20% stronger', fav: [] },
+  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Balanced: +15% damage and 20% stronger stats; alternates a stab at the nearest enemy and a slash at the biggest group', fav: [] },
   axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
-  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
+  spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage near the tip; the first enemy in the line takes 130%, each one behind it 40% less', fav: ['range', 'pen', 'flat', 'stun'] },
   shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor and always knocks back',
             fav: ['armor', 'maxHp', 'regen', 'knock', 'stun'] },
 };
@@ -485,8 +485,8 @@ const EPASS = {
   blue: [
     { k: 'chillCh',   v: 8,   base: 30,  cap: 100, u: '%', t: 'chance to chill on Frost hits' },
     { k: 'slow',      v: 5,   base: 35,  cap: 80,  u: '%', t: 'chill slow' },
-    { k: 'ccDur',     v: 10,  base: 100, cap: 200, u: '%', t: 'stun & root duration' },
-    { k: 'freezeDur', v: .15, base: 1.1, cap: 3,   u: 's', t: 'freeze duration' },
+    { k: 'ccDur',     v: 10,  base: 100, cap: 300, u: '%', t: 'stun & root duration' },
+    { k: 'freezeDur', v: .15, base: 1.1, cap: 4.5, u: 's', t: 'freeze duration' },
     { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: .5,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 8, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
   ],
@@ -551,7 +551,7 @@ function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
 // armor is a % reduction for everyone: armor / (armor + ARM_K). 25 armor = 33% less damage, 50 = 50%, 100 = 67%.
 const ARM_K = 50;
-const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1;   // enemies: damage multiplier left after armor (blocks at most 80%)
+const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1 + Math.min(.5, -a / 100);   // negative armor: +1% damage per point (max +50%)   // enemies: damage multiplier left after armor (blocks at most 80%)
 // you: armor climbs quickly to a 70% soft cap (30 armor), then slowly to an 80% hard cap (100 armor)
 const ARM_SOFT = 30, ARM_HARD = 100;
 const armCap = () => S && sv('over') ? .85 : .8;   // Stoneheart lifts the hard cap
@@ -559,7 +559,15 @@ const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .
 const playerArm = a => 1 - armBlock(a);
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 const ENEMY_ARM_MAX = 200;
-const effArmor = (arm, pen) => Math.max(arm * .5, arm - pen);   // penetration removes at most half an enemy's armor   // 200 armor blocks 80%: enemy armor never grows past it
+// enemy traits: some normal enemies resist one kind of damage and are weak to its opposite
+const RESIST = {
+  bulwark: { n: 'Bulwark', col: '#b8c0d0', aoe: .5, single: 1.5, d: 'Takes half damage from area hits (explosions, slashes, novas); takes +50% from single-target hits' },
+  phased:  { n: 'Phased',  col: '#9be8ff', single: .5, aoe: 1.5, d: 'Takes half damage from single-target hits (stabs, strikes, bolts); takes +50% from area hits' },
+  warded:  { n: 'Warded',  col: '#c79bff', ability: .5, weapon: 1.5, d: 'Takes half damage from abilities and summons; takes +50% from weapon hits' },
+};
+const RESIST_KEYS = Object.keys(RESIST);
+const resistChance = w => w < 6 ? 0 : Math.min(.35, (w - 5) * .015);   // 1.5% a wave from wave 6, up to 35%
+const effArmor = (arm, pen) => arm - pen;   // can go negative   // 200 armor blocks 80%: enemy armor never grows past it
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 18 : 0)); }   // endless: more enemies, not tougher ones
 // endless enemies also move a little faster each wave (up to +40%)
 const endlessSpd = () => S.wave > 20 ? Math.min(1.4, 1 + (S.wave - 20) * .02) : 1;
@@ -1365,6 +1373,11 @@ function dmg(e, amt, o) {
     d *= m;
     if (!o.pierce) d = Math.max(1, d * armRed(effArmor(e.armor, tot.pen + (o.pen || 0))));
     if (e.confT > 0) d *= 1.15;   // confused enemies take more
+    if (e.res && !o.dot && o.src !== 'thorns') {   // enemy traits
+      const Rz = RESIST[e.res], src = o.src || 'ability', weaponHit = src === 'weapon' || src === 'bleed';
+      d *= (o.aoe || AOE_ON > 0) ? (Rz.aoe || 1) : (Rz.single || 1);
+      d *= weaponHit ? (Rz.weapon || 1) : (Rz.ability || 1);
+    }
   }
   const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
   if (d > 0 && rel('omni')) { const room = tot.maxHp * .04 - (S.omniS || 0); if (room > 0) { const h = Math.min(room, d * .01); S.omniS = (S.omniS || 0) + h; heal(h); } }
@@ -1406,8 +1419,10 @@ function burn(e, total, o) {
   if (e.bs.length > S.rs.stacks) S.rs.stacks = e.bs.length;
   e.burnT = Math.max(e.burnT, life);
 }
+// after a freeze, stun or root ends, the enemy can't be frozen, stunned or rooted again for 2.5s
+const CC_IMMUNE = 2.5;
 function freeze(e) {
-  if (e.dead || e.fixed) return;
+  if (e.dead || e.fixed || S.time < (e.ccImm || 0)) return;
   e.chill = 0;
   e.frozen = E('blue', 'freezeDur') * (e.boss || e.elite ? .35 : 1);
   sfx('freeze');
@@ -1419,10 +1434,11 @@ function chill(e, n) {
   e.chill += n; e.chillT = 2.6;
   if (e.chill >= 4) freeze(e);
 }
-function stun(e, t) { if (e.dead) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
+function stun(e, t) { if (e.dead || S.time < (e.ccImm || 0)) return; t *= E('blue', 'ccDur') / 100; e.stun = Math.max(e.stun, e.boss || e.elite ? t * .35 : t); }
 function knock(e, ang, f) { if (e.dead || e.boss || e.fixed) return; if (e.type === 'brute' || e.elite) f *= .45; e.kx += Math.cos(ang) * f; e.ky += Math.sin(ang) * f; }
 const boomR = r => r;   // explosion size is part of ability area now
-function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); }
+let AOE_ON = 0;   // damage dealt inside an area check counts as area damage
+function eachNear(x, y, r, fn) { r *= areaM(); AOE_ON++; try { grid.near(x, y, r + 64, e => { if (!e.dead && Math.hypot(e.x - x, e.y - y) < r + e.r) fn(e); }); } finally { AOE_ON--; } }
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
   o = o || NO;
@@ -1625,27 +1641,37 @@ function weaponAttack(w) {
   const T = TYPES[w.type], p = S.p, range = T.range * tot.rangeM;
   const tg = nearest(p.x, p.y, range, null, true);
   if (!tg) return false;
-  const dir = Math.atan2(tg.y - p.y, tg.x - p.x);
+  let dir = Math.atan2(tg.y - p.y, tg.x - p.x);
+  // swords alternate: a stab at the nearest enemy, then a slash aimed at the biggest group in reach
+  let kind = T.kind;
+  if (w.type === 'sword') {
+    w.alt = !w.alt;
+    if (w.alt) kind = 'stab';
+    else { let best = tg, bn = -1; grid.near(p.x, p.y, range + 40, e => { if (e.dead || Math.hypot(e.x - p.x, e.y - p.y) > range + e.r) return; let n = 0; grid.near(e.x, e.y, 70, o => { if (!o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 60) n++; }); if (n > bn) { bn = n; best = e; } }); dir = Math.atan2(best.y - p.y, best.x - p.x); }
+  }
   w.anim = 1; w.dir = dir;
   let targets;
-  if (T.kind === 'stab') targets = [tg];
+  if (kind === 'stab') targets = [tg];
   else {
     targets = [];
     const cs = Math.cos(dir), sn = Math.sin(dir), half = (T.arc || 0) / 2 * Math.PI / 180;
     grid.near(p.x, p.y, range + 64, e => {
       if (e.dead) return;
-      if (T.kind === 'arc') { if (inCone(e, p.x, p.y, dir, half, range)) targets.push(e); }
+      if (kind === 'arc') { if (inCone(e, p.x, p.y, dir, half, range)) targets.push(e); }
       else { const dx = e.x - p.x, dy = e.y - p.y, along = dx * cs + dy * sn, perp = Math.abs(-dx * sn + dy * cs); if (along > -e.r && along < range + e.r && perp < 11 + e.r) targets.push(e); }
     });
     if (!targets.length) targets = [tg];
   }
-  FX({ k: T.kind === 'arc' ? 'swing' : 'thrust', x: p.x, y: p.y, dir, arc: (T.arc || 0) * Math.PI / 180, r: range, col: COL[w.el], life: T.kind === 'arc' ? .18 : .13, evo: w.evo });
+  FX({ k: kind === 'arc' ? 'swing' : 'thrust', x: p.x, y: p.y, dir, arc: (T.arc || 0) * Math.PI / 180, r: range, col: COL[w.el], life: kind === 'arc' ? .18 : .13, evo: w.evo });
   sfx('swing'); sfx('hit_' + w.el);
-  for (const e of targets) strike(w, e, dir);
+  // spears: the first enemy in the line takes 130%, each one behind it 40% less than the last
+  if (w.type === 'spear' && targets.length > 1) targets.sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y));
+  const area = targets.length > 1 || kind === 'arc';   // counts as area damage for enemy resistances
+  targets.forEach((e, i) => strike(w, e, dir, w.type === 'spear' ? 1.3 * Math.pow(.6, i) : 1, area && !(w.type === 'spear' && i === 0)));
   return true;
 }
-function strike(w, e, dir) {
-  let d = weaponDmg(w);
+function strike(w, e, dir, mult, aoe) {
+  let d = weaponDmg(w) * (mult || 1);
   const ty = w.type, spreadM = ty === 'axe' ? 1.5 : 1;   // Status spreader: axes apply their element 50% more often
   if (ty === 'spear' && Math.hypot(e.x - S.p.x, e.y - S.p.y) - e.r > TYPES.spear.range * tot.rangeM * .55) d *= 1.25;   // Reach
   if (ty === 'sword') d *= 1.15;   // Balanced
@@ -1656,7 +1682,7 @@ function strike(w, e, dir) {
   const tk = thornShare(w);
   const crit = tenth || Math.random() * 100 < tot.crit + tot.thornCrit * tk;
   if (crit) { d *= tot.critMult + (tot.thornCritM - 1) * tk + (tenth ? 1 : 0); S.punch = Math.min(1, S.punch + .3); sfx('crit'); puff(e.x, e.y, '#ffffff', 3, 120, .25); }
-  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon', pen: tot.thornPen * tk });
+  const dealt = dmg(e, d, { col: COL[w.el], crit, src: 'weapon', pen: tot.thornPen * tk, aoe });
   S.rs.wt[ty] = (S.rs.wt[ty] || 0) + dealt; if (crit) S.rs.crits++;
   if (tot.leech) heal(dealt * tot.leech / 100);
   if (ty === 'dagger' && !e.dead) {
@@ -1773,7 +1799,7 @@ function spawnEnemy(type, x, y) {
   const hp = type === 'boss' ? BOSS_HP * hpMult(w) : d.hp * hpMult(w);   // boss = about 3x an elite brute
   if (x === undefined) { const a = Math.random() * TAU; x = Math.cos(a) * SPAWN_R; y = Math.sin(a) * SPAWN_R; }
   const e = {
-    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: Math.min(ENEMY_ARM_MAX, armorAt(w) * (d.arm || 1)),
+    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: Math.min(ENEMY_ARM_MAX, armorAt(w) * (d.arm || 1)), res: !d.special && type !== 'boss' && Math.random() < resistChance(w) ? pick(RESIST_KEYS) : null,
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
     col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
     atkCd: 0, hitT: 0, burnT: 0, bs: [], burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
@@ -1804,7 +1830,9 @@ function updEnemies(dt) {
   const altarOn = S.enemies.some(e => e.type === 'altar' && !e.dead);
   for (const e of S.enemies) {
     if (e.dead) continue;
+    if (e.res && !(S.resSeen || (S.resSeen = {}))[e.res]) { S.resSeen[e.res] = 1; banner(`${RESIST[e.res].n} enemies: ${RESIST[e.res].d.split(';')[0].toLowerCase()}`, true); }
     e.hitT -= dt; e.atkCd -= dt * (S.ot || 1); e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
+    if (e.frozen > 0 || e.stun > 0) e.wasCC = true; else if (e.wasCC) { e.wasCC = false; e.ccImm = S.time + CC_IMMUNE; }
     if (e.dnAcc > 0 && (e.dnT -= dt) <= 0) flushDn(e);
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
@@ -2687,6 +2715,12 @@ function draw() {
 
   // ---- enemies and structures
   for (const e of S.enemies) drawEnemy(c, e, T);
+  for (const e of S.enemies) if (e.res && !e.dead) {   // trait markers
+    const Rz = RESIST[e.res], rr = e.r + 5; c.strokeStyle = Rz.col; c.lineWidth = 2;
+    if (e.res === 'bulwark') { c.beginPath(); for (let i = 0; i < 6; i++) { const t = i / 6 * TAU; c[i ? 'lineTo' : 'moveTo'](e.x + Math.cos(t) * rr, e.y + Math.sin(t) * rr); } c.closePath(); c.stroke(); }
+    else if (e.res === 'phased') { c.setLineDash([3, 4]); c.beginPath(); c.arc(e.x, e.y, rr, T * 2, T * 2 + TAU); c.stroke(); c.setLineDash([]); }
+    else { c.beginPath(); c.arc(e.x, e.y, rr, 0, TAU); c.stroke(); c.fillStyle = Rz.col; for (let i = 0; i < 3; i++) { const t = T * 1.5 + i / 3 * TAU; c.beginPath(); c.arc(e.x + Math.cos(t) * rr, e.y + Math.sin(t) * rr, 2, 0, TAU); c.fill(); } }
+  }
   for (const pi of S.pillars) { c.globalAlpha = Math.min(1, pi.life); drawCrystal(c, pi.x, pi.y, 22, 9); c.globalAlpha = 1; }
   drawOrbs(c, T);
   for (const b of S.walls) { c.globalAlpha = Math.min(1, b.life * 2); drawCrystal(c, b.x, b.y, 15 + b.seed * 6, b.r); c.globalAlpha = 1; }
@@ -3137,7 +3171,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 34,
+  v: 35,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3158,7 +3192,10 @@ const PATCH = {
     'Endless Overtime: from wave 21, a wave still going after 20s speeds its enemies up every 10s',
     'From wave 30 enemies can pile up to about 10 deep, and enemies that reach you attack faster (0.55s, down to 0.35s)',
     'Endless: enemy health grows 5% a wave (was 31%), enemy armor stops at 80% block, more enemies on screen (220) that move a little faster each wave',
-    'Penetration can remove at most half of an enemy\'s armor',
+    'Penetration past an enemy\'s armor counts as negative armor: +1% damage per point (up to +50%)',
+    'Spears: first enemy in the line takes 130%, each one behind 40% less; swords alternate stab and slash at the biggest group',
+    'After a freeze, stun or root ends, that enemy is immune to them for 2.5s; freeze and stun duration caps raised',
+    'New enemy traits from wave 6: Bulwark (resists area), Phased (resists single-target), Warded (resists abilities) — each weak to the opposite',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
@@ -3177,6 +3214,7 @@ function codexHtml() {
   for (const c of ORDER) h += `<h3 style="color:${COL[c]}">${ELEM[c]} · ${ABIL[c].filter(a => CODEX.ab[a.id]).length}/${ABIL[c].length}</h3><p class="hint" style="margin:-4px 0 8px">${ELEM_ID[c]}</p>` + ABIL[c].map(a => CODEX.ab[a.id] ? `<div class="cx" style="--c:${COL[c]}"><b>${a.name}</b>${patchTag(a.id)}<br>${a.d(a, 0)}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   const allSyn = Object.values(SYN);
   h += `<h3>Synergies · ${allSyn.filter(a => CODEX.syn[a.id]).length}/${SYN_COUNT}</h3>` + allSyn.map(a => CODEX.syn[a.id] ? `<div class="cx" style="--c:${COL[a.els[0]]}"><b>${a.name}</b>${patchTag(a.id, 'syn')} <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span><br>${a.els.length === 3 ? synText(a, 1) : `${a.minor}.<br><span class="hint">Major (4+2):</span> ${a.major}`}</div>` : `<div class="cx un"><b>???</b> <span class="hint">${a.els.map(c => ELEM[c]).join(' + ')}</span></div>`).join('');
+  h += `<h3>Enemy traits</h3><p class="hint" style="margin:-4px 0 8px">From wave 6 some enemies carry a trait, marked by a ring.</p>` + RESIST_KEYS.map(k => `<div class="cx" style="--c:${RESIST[k].col}"><b>${RESIST[k].n}</b><br>${RESIST[k].d}</div>`).join('');
   h += `<h3>Boss relics · ${RELICS.filter(r => CODEX.rel[r.id]).length}/${RELICS.length}</h3>` + RELICS.map(r => CODEX.rel[r.id] ? `<div class="cx" style="--c:${r.col}"><b>${r.name}</b>${patchTag(r.id)}<br>${r.d}</div>` : `<div class="cx un"><b>???</b></div>`).join('');
   return h;
 }
@@ -3437,7 +3475,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, freeze, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)

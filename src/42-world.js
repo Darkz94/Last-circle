@@ -4,7 +4,7 @@ function spawnEnemy(type, x, y) {
   const hp = type === 'boss' ? BOSS_HP * hpMult(w) : d.hp * hpMult(w);   // boss = about 3x an elite brute
   if (x === undefined) { const a = Math.random() * TAU; x = Math.cos(a) * SPAWN_R; y = Math.sin(a) * SPAWN_R; }
   const e = {
-    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: Math.min(ENEMY_ARM_MAX, armorAt(w) * (d.arm || 1)),
+    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: Math.min(ENEMY_ARM_MAX, armorAt(w) * (d.arm || 1)), res: !d.special && type !== 'boss' && Math.random() < resistChance(w) ? pick(RESIST_KEYS) : null,
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
     col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
     atkCd: 0, hitT: 0, burnT: 0, bs: [], burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
@@ -35,7 +35,9 @@ function updEnemies(dt) {
   const altarOn = S.enemies.some(e => e.type === 'altar' && !e.dead);
   for (const e of S.enemies) {
     if (e.dead) continue;
+    if (e.res && !(S.resSeen || (S.resSeen = {}))[e.res]) { S.resSeen[e.res] = 1; banner(`${RESIST[e.res].n} enemies: ${RESIST[e.res].d.split(';')[0].toLowerCase()}`, true); }
     e.hitT -= dt; e.atkCd -= dt * (S.ot || 1); e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
+    if (e.frozen > 0 || e.stun > 0) e.wasCC = true; else if (e.wasCC) { e.wasCC = false; e.ccImm = S.time + CC_IMMUNE; }
     if (e.dnAcc > 0 && (e.dnT -= dt) <= 0) flushDn(e);
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
