@@ -149,7 +149,7 @@ function saveRun() {
     v: 2, st: S.st, ep: S.ep, tsets: S.typeSets, sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(a => a.id)])),
     level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
     weapons: S.weapons.map(packW), relics: S.relics, syn: S.synRoll, bosses: S.bossOrder, pendingRelic: S.pendingRelic, relicOffer: S.relicOffer,
-    rs: S.rs, grow: S.grow, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
+    rs: S.rs, grow: S.grow, bans: S.bans || [], phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
     lvRerollBuys: S.lvRerollBuys, lvRerolls: S.lvRerolls, shopLocked: S.shopLocked, lockedOffers: S.lockedOffers && S.lockedOffers.map(packW), shopWave: S.shopWave,
     perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(packCard) : null, lockedCards: S.lockedCards.map(packCard),
   });
@@ -168,7 +168,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => [0, 1, 2].includes(d.syn[pairKey(a, b)])) && TRIOS.every(t => [0, 1].includes(d.syn['t:' + t.join('+')]));
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, { area: 0, cdr: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow);
+  Object.assign(S.st, { area: 0, cdr: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow); S.bans = Array.isArray(d.bans) ? d.bans : [];
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;

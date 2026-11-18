@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 35,
+  v: 36,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -133,6 +133,9 @@ const PATCH = {
     'Spears: first enemy in the line takes 130%, each one behind 40% less; swords alternate stab and slash at the biggest group',
     'After a freeze, stun or root ends, that enemy is immune to them for 2.5s; freeze and stun duration caps raised',
     'New enemy traits from wave 6: Bulwark (resists area), Phased (resists single-target), Warded (resists abilities) — each weak to the opposite',
+    'Overtime on every wave: 30s up to wave 20, then 5s sooner after each boss; it now speeds up your weapons and abilities as well as enemies',
+    'Damage upgrades have no caps (Shatter keeps its 8% cap)',
+    'A kept card comes back unlocked; new Ban button removes an upgrade for the run (3 per run)',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
@@ -167,11 +170,11 @@ function renderLevelUp() {
     else main = `<div class="el" style="color:var(--dim)">Stat</div><div class="big">${c.pr.t(c.pv)}</div>`;
     return `<div class="card flat ${c.locked ? 'kept' : ''}" style="--c:${c.el ? COL[c.el.c] : c.combo ? 'var(--gold)' : '#666'}">${main}
       ${c.el || c.combo ? `<div class="sec"><small>Bonus stat ${c.rare ? '<span class="rare">RARE</span>' : ''}</small>${c.pr.t(c.pv)}</div>` : ''}
-      <div class="row" style="margin-top:auto"><button class="btn go wide" data-act="perk:${i}">Take</button><button class="btn ${c.locked ? 'on' : ''}" data-act="lvlock:${i}">${c.locked ? '🔒 Kept' : 'Keep'}</button></div></div>`;
+      <div class="row" style="margin-top:auto"><button class="btn go wide" data-act="perk:${i}">Take</button><button class="btn ${c.locked ? 'on' : ''}" data-act="lvlock:${i}">${c.locked ? '🔒 Kept' : 'Keep'}</button>${c.el && (S.bans || []).length < BANS ? `<button class="btn" data-act="lvban:${i}" title="Ban this upgrade for the rest of the run">Ban</button>` : ''}</div></div>`;
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. “Ban” removes an upgrade for the rest of the run (${BANS - (S.bans || []).length} left). Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -316,6 +319,14 @@ function act(a, arg) {
   if (a === 'perk') { choosePerk(+arg); return; }
   if (a === 'relic') { takeRelic(arg); return; }
   if (a === 'lvreroll') { if (S.lvRerolls > 0) { S.lvRerolls--; sfx('click'); S.lockedCards = S.perkOffer.filter(c => c.locked).map(c => ({ ...c, locked: false })); S.perkOffer = rollLevelCards(); renderLevelUp(); } return; }
+  if (a === 'lvban') {   // ban an upgrade for the rest of the run and replace the card
+    const c = S.perkOffer[+arg]; if (!c || !c.el || (S.bans || []).length >= BANS) return;
+    (S.bans = S.bans || []).push(c.el.c + ':' + c.el.d.k); sfx('click');
+    const have = new Set(S.perkOffer.filter(x => x !== c && x.el).map(x => x.el.c + x.el.d.k));
+    const fresh = rollLevelCards().find(x => !x.locked && (!x.el || !have.has(x.el.c + x.el.d.k))) || null;
+    if (fresh) S.perkOffer[+arg] = fresh; else S.perkOffer.splice(+arg, 1);
+    saveRun(); renderLevelUp(); return;
+  }
   if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { const on = !c.locked; S.perkOffer.forEach(x => { x.locked = false; }); c.locked = on; sfx('click'); renderLevelUp(); } return; }   // only one card can be kept
   if (S.phase !== 'shop') return;
   const g = S.gold;

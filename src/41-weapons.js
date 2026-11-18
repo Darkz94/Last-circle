@@ -11,7 +11,7 @@ function weaponDmg(w) {
 const avgDmg = () => S.weapons.reduce((s, w) => s + weaponDmg(w), 0) / Math.max(1, S.weapons.length);
 const surgeM = () => 1 + S.surge.n * sv('surge') / 100;
 function atkSpeed(w) {
-  let m = (1 + tot.atkSpd / 100) * surgeM() * (1 + ((S.buff && S.buff.atk) || 0)) * (1 + (rel('blood') ? S.blood / 100 : 0));
+  let m = (1 + tot.atkSpd / 100) * surgeM() * (1 + ((S.buff && S.buff.atk) || 0)) * (1 + (rel('blood') ? S.blood / 100 : 0)) * (S.ot || 1);   // Overtime speeds you up too
   if (w.el === 'yellow') m *= YEL_SPD + (E('yellow', 'lspd') + sv('current')) / 100;
   return m;
 }

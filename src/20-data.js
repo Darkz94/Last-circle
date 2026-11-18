@@ -78,8 +78,8 @@ const EPASS = {
   red: [
     { k: 'ign',     v: 8,   base: 14,  cap: 100, u: '%', t: 'ignite chance on Fire hits' },
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
-    { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
-    { k: 'burn',    v: 20,  base: 140, cap: 440, u: '%', t: 'burn damage' },
+    { k: 'vsBurn',  v: 10,  base: 0,   cap: 1e9, u: '%', t: 'damage to burning enemies' },
+    { k: 'burn',    v: 20,  base: 140, cap: 1e9, u: '%', t: 'burn damage' },
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
@@ -89,11 +89,11 @@ const EPASS = {
     { k: 'slow',      v: 5,   base: 35,  cap: 80,  u: '%', t: 'chill slow' },
     { k: 'ccDur',     v: 10,  base: 100, cap: 300, u: '%', t: 'stun & root duration' },
     { k: 'freezeDur', v: .15, base: 1.1, cap: 4.5, u: 's', t: 'freeze duration' },
-    { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
+    { k: 'vsChill',   v: 10,  base: 0,   cap: 1e9, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: .5,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 8, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 10, base: 28,  cap: 128, u: '%', t: 'lightning damage' },
+    { k: 'strike', v: 10, base: 28,  cap: 1e9, u: '%', t: 'lightning damage' },
     { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
@@ -111,7 +111,7 @@ const EPASS = {
     { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' , req: GOLEMERS },
     { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' , req: GOLEMERS },
     { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' , req: GOLEMERS },
-    { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
+    { k: 'thornFlat', v: 8,  base: 0,   cap: 1e9, u: '',  t: 'thorn damage' },
   ],
 };
 const EDEF = {}; for (const c of ORDER) { EDEF[c] = {}; for (const d of EPASS[c]) EDEF[c][d.k] = d; }

@@ -49,6 +49,7 @@ function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ?
 // cooldown reduction is only offered while at least one timed ability could still get faster
 const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
 function updMods(dt) {
+  dt *= S.ot || 1;   // Overtime: timed abilities speed up with everything else
   S.beam = null;
   const hs = S.hk.fire, rate = rel('clock') ? 1.25 : 1, echo = rel('echo');
   if (hs) for (const h of hs) {
@@ -144,7 +145,8 @@ function nextMenu() {
 }
 
 // ---- level-up cards: an element upgrade (main) plus a basic stat (bonus)
-function eligible(c) { return EPASS[c].filter(d => (!d.req || S.runSets[c].some(a => d.req.includes(a.id))) && E(c, d.k) < d.cap - 1e-9); }
+const BANS = 3;
+function eligible(c) { return EPASS[c].filter(d => (!d.req || S.runSets[c].some(a => d.req.includes(a.id))) && E(c, d.k) < d.cap - 1e-9 && !(S.bans || []).includes(c + ':' + d.k)); }
 function statCard(pr) {
   const rare = Math.random() < .18;
   let pv = pr.v * (rare ? 1.6 : 1);
@@ -155,7 +157,7 @@ function statCard(pr) {
 }
 function rollLevelCards() {
   const cards = [], used = new Set();
-  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
+  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: false }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
   const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
   // combo level-ups: in a duo or trio build, every 5th level offers cards that upgrade every element of the combo at once

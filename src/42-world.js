@@ -16,9 +16,11 @@ function spawnEnemy(type, x, y) {
 }
 function updSpawner(dt) {
   if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; S.lastBossKey = bossKeyFor(S.wave); spawnBoss(S.lastBossKey); S.shake = 6; } }
-  // Overtime: from wave 21, a wave still going after 20s speeds its enemies up 15% more every 10s (max 2.5x)
+  // Overtime: a wave still going after its time limit speeds everything up 15% more every 10s (max 2.5x):
+  // enemies AND your weapons and abilities. The limit is 30s up to wave 20, then 5s shorter after each boss.
   S.otT = (S.otT || 0) + dt;
-  if (S.wave > 20 && S.otT > 20) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - 20) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
+  const otAt = otStart(S.wave);
+  if (S.otT > otAt) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - otAt) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
   if (S.toSpawn <= 0) return;
   S.spawnT -= dt * (S.ot || 1);
   if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 220 : 110)) return;
@@ -28,6 +30,7 @@ function updSpawner(dt) {
   for (let i = 0; i < grp; i++) { const aa = a + rnd(-.18, .18), rr = SPAWN_R + rnd(0, 30); spawnEnemy(type, Math.cos(aa) * rr, Math.sin(aa) * rr); }
   S.toSpawn -= grp;
 }
+const otStart = w => w <= 20 ? 30 : Math.max(5, 30 - 5 * Math.ceil((w - 20) / 10));
 // enemies that reach you swing every 0.9s; from wave 30 faster (0.55s, then a little quicker each wave, down to 0.35s)
 const enemyAtkCd = () => S.wave < 30 ? .9 : Math.max(.35, .55 - (S.wave - 30) * .01);
 function updEnemies(dt) {

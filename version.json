@@ -1,1 +1,1 @@
-{ "version": 35, "notes": "Enemy traits (Bulwark, Phased, Warded). Crowd-control immunity after freeze/stun/root. Spear damage falls off along the line; swords alternate stab and slash. Penetration can push enemies into negative armor." }
+{ "version": 36, "notes": "Overtime on every wave (30s, 5s sooner after each boss) and it speeds you up too. No caps on damage upgrades. Kept cards come back unlocked. New: Ban (3 per run)." }

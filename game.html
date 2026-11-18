@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 35;
+const GAME_VERSION = 36;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -476,8 +476,8 @@ const EPASS = {
   red: [
     { k: 'ign',     v: 8,   base: 14,  cap: 100, u: '%', t: 'ignite chance on Fire hits' },
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
-    { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
-    { k: 'burn',    v: 20,  base: 140, cap: 440, u: '%', t: 'burn damage' },
+    { k: 'vsBurn',  v: 10,  base: 0,   cap: 1e9, u: '%', t: 'damage to burning enemies' },
+    { k: 'burn',    v: 20,  base: 140, cap: 1e9, u: '%', t: 'burn damage' },
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
@@ -487,11 +487,11 @@ const EPASS = {
     { k: 'slow',      v: 5,   base: 35,  cap: 80,  u: '%', t: 'chill slow' },
     { k: 'ccDur',     v: 10,  base: 100, cap: 300, u: '%', t: 'stun & root duration' },
     { k: 'freezeDur', v: .15, base: 1.1, cap: 4.5, u: 's', t: 'freeze duration' },
-    { k: 'vsChill',   v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to chilled & frozen enemies' },
+    { k: 'vsChill',   v: 10,  base: 0,   cap: 1e9, u: '%', t: 'damage to chilled & frozen enemies' },
     { k: 'shatterPct',v: .5,   base: () => { const i = S.runSets.blue.findIndex(a => a.id === 'shatter'); return i < 0 ? 0 : AB.shatter.v[i]; }, cap: 8, u: '%', t: 'shatter damage (of max HP)', req: ['shatter'] },
   ],
   yellow: [
-    { k: 'strike', v: 10, base: 28,  cap: 128, u: '%', t: 'lightning damage' },
+    { k: 'strike', v: 10, base: 28,  cap: 1e9, u: '%', t: 'lightning damage' },
     { k: 'strikeCh', v: 5, base: 10, cap: 50, u: '%', t: 'chance for Lightning weapon hits to call a strike' },
     { k: 'lcrit',  v: 5,  base: 0,   cap: 50,  u: '%', t: 'extra crit chance for lightning strikes' },
     { k: 'arcCh',  v: 10, base: 30,  cap: 100, u: '%', t: 'chance for a strike to arc (arcs deal half)' },
@@ -509,7 +509,7 @@ const EPASS = {
     { k: 'slife',     v: 15, base: 100, cap: 300, u: '%', t: 'golem lifetime' , req: GOLEMERS },
     { k: 'scap',      v: 5,  base: 30,  cap: 70,  u: '',  t: 'max golems at once' , req: GOLEMERS },
     { k: 'bond',      v: 10, base: 60,  cap: 150, u: '%', t: 'of your damage & crit inherited by golems' , req: GOLEMERS },
-    { k: 'thornFlat', v: 8,  base: 0,   cap: 600, u: '',  t: 'thorn damage' },
+    { k: 'thornFlat', v: 8,  base: 0,   cap: 1e9, u: '',  t: 'thorn damage' },
   ],
 };
 const EDEF = {}; for (const c of ORDER) { EDEF[c] = {}; for (const d of EPASS[c]) EDEF[c][d.k] = d; }
@@ -1299,7 +1299,7 @@ function saveRun() {
     v: 2, st: S.st, ep: S.ep, tsets: S.typeSets, sets: Object.fromEntries(ORDER.map(c => [c, S.runSets[c].map(a => a.id)])),
     level: S.level, xp: S.xp, pendingLv: S.pendingLv, gold: S.gold, wave: S.wave, kills: S.kills,
     weapons: S.weapons.map(packW), relics: S.relics, syn: S.synRoll, bosses: S.bossOrder, pendingRelic: S.pendingRelic, relicOffer: S.relicOffer,
-    rs: S.rs, grow: S.grow, phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
+    rs: S.rs, grow: S.grow, bans: S.bans || [], phase: S.phase, offers: S.offers.map(packW), rerolls: S.rerolls, lastLost: S.lastLost,
     lvRerollBuys: S.lvRerollBuys, lvRerolls: S.lvRerolls, shopLocked: S.shopLocked, lockedOffers: S.lockedOffers && S.lockedOffers.map(packW), shopWave: S.shopWave,
     perkOffer: S.phase === 'levelup' && S.perkOffer ? S.perkOffer.map(packCard) : null, lockedCards: S.lockedCards.map(packCard),
   });
@@ -1318,7 +1318,7 @@ function resumeRun(d) {
   const okSyn = d.syn && PAIRS.every(([a, b]) => [0, 1, 2].includes(d.syn[pairKey(a, b)])) && TRIOS.every(t => [0, 1].includes(d.syn['t:' + t.join('+')]));
   const okBoss = d.bosses && d.bosses.length === BOSS_KEYS.length && d.bosses.every(k => BOSSES[k]);
   S = freshState(sets, tsets, okSyn ? d.syn : rollSyn(), okBoss ? d.bosses : rollBosses());
-  Object.assign(S.st, { area: 0, cdr: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow);
+  Object.assign(S.st, { area: 0, cdr: 0 }, d.st); S.ep = d.ep; if (d.rs) Object.assign(S.rs, d.rs); if (d.grow) Object.assign(S.grow, d.grow); S.bans = Array.isArray(d.bans) ? d.bans : [];
   for (const k of ['level', 'xp', 'pendingLv', 'gold', 'wave', 'kills', 'lastLost', 'lvRerollBuys', 'lvRerolls', 'shopLocked', 'shopWave', 'pendingRelic', 'rerolls']) if (d[k] !== undefined) S[k] = d[k];
   S.relics = (d.relics || []).filter(id => RELIC[id]);
   S.relicOffer = d.relicOffer && d.relicOffer.every(id => RELIC[id]) ? d.relicOffer : null;
@@ -1633,7 +1633,7 @@ function weaponDmg(w) {
 const avgDmg = () => S.weapons.reduce((s, w) => s + weaponDmg(w), 0) / Math.max(1, S.weapons.length);
 const surgeM = () => 1 + S.surge.n * sv('surge') / 100;
 function atkSpeed(w) {
-  let m = (1 + tot.atkSpd / 100) * surgeM() * (1 + ((S.buff && S.buff.atk) || 0)) * (1 + (rel('blood') ? S.blood / 100 : 0));
+  let m = (1 + tot.atkSpd / 100) * surgeM() * (1 + ((S.buff && S.buff.atk) || 0)) * (1 + (rel('blood') ? S.blood / 100 : 0)) * (S.ot || 1);   // Overtime speeds you up too
   if (w.el === 'yellow') m *= YEL_SPD + (E('yellow', 'lspd') + sv('current')) / 100;
   return m;
 }
@@ -1811,9 +1811,11 @@ function spawnEnemy(type, x, y) {
 }
 function updSpawner(dt) {
   if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; S.lastBossKey = bossKeyFor(S.wave); spawnBoss(S.lastBossKey); S.shake = 6; } }
-  // Overtime: from wave 21, a wave still going after 20s speeds its enemies up 15% more every 10s (max 2.5x)
+  // Overtime: a wave still going after its time limit speeds everything up 15% more every 10s (max 2.5x):
+  // enemies AND your weapons and abilities. The limit is 30s up to wave 20, then 5s shorter after each boss.
   S.otT = (S.otT || 0) + dt;
-  if (S.wave > 20 && S.otT > 20) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - 20) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
+  const otAt = otStart(S.wave);
+  if (S.otT > otAt) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - otAt) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
   if (S.toSpawn <= 0) return;
   S.spawnT -= dt * (S.ot || 1);
   if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 220 : 110)) return;
@@ -1823,6 +1825,7 @@ function updSpawner(dt) {
   for (let i = 0; i < grp; i++) { const aa = a + rnd(-.18, .18), rr = SPAWN_R + rnd(0, 30); spawnEnemy(type, Math.cos(aa) * rr, Math.sin(aa) * rr); }
   S.toSpawn -= grp;
 }
+const otStart = w => w <= 20 ? 30 : Math.max(5, 30 - 5 * Math.ceil((w - 20) / 10));
 // enemies that reach you swing every 0.9s; from wave 30 faster (0.55s, then a little quicker each wave, down to 0.35s)
 const enemyAtkCd = () => S.wave < 30 ? .9 : Math.max(.35, .55 - (S.wave - 30) * .01);
 function updEnemies(dt) {
@@ -2438,6 +2441,7 @@ function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ?
 // cooldown reduction is only offered while at least one timed ability could still get faster
 const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
 function updMods(dt) {
+  dt *= S.ot || 1;   // Overtime: timed abilities speed up with everything else
   S.beam = null;
   const hs = S.hk.fire, rate = rel('clock') ? 1.25 : 1, echo = rel('echo');
   if (hs) for (const h of hs) {
@@ -2533,7 +2537,8 @@ function nextMenu() {
 }
 
 // ---- level-up cards: an element upgrade (main) plus a basic stat (bonus)
-function eligible(c) { return EPASS[c].filter(d => (!d.req || S.runSets[c].some(a => d.req.includes(a.id))) && E(c, d.k) < d.cap - 1e-9); }
+const BANS = 3;
+function eligible(c) { return EPASS[c].filter(d => (!d.req || S.runSets[c].some(a => d.req.includes(a.id))) && E(c, d.k) < d.cap - 1e-9 && !(S.bans || []).includes(c + ':' + d.k)); }
 function statCard(pr) {
   const rare = Math.random() < .18;
   let pv = pr.v * (rare ? 1.6 : 1);
@@ -2544,7 +2549,7 @@ function statCard(pr) {
 }
 function rollLevelCards() {
   const cards = [], used = new Set();
-  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: true }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
+  for (const lc of S.lockedCards.slice(0, 1)) if (cards.length < 3) { cards.push({ ...lc, locked: false }); for (const x of lc.combo || (lc.el ? [lc.el] : [])) used.add(x.c + x.d.k); }
   S.lockedCards = [];
   const stats = shuffle(PRIM.filter(p => (p.k !== 'area' || (S.st.area || 0) < AREA_CAP) && (p.k !== 'cdr' || cdrUseful())));   // maxed stats leave the pool
   // combo level-ups: in a duo or trio build, every 5th level offers cards that upgrade every element of the combo at once
@@ -3171,7 +3176,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 35,
+  v: 36,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3196,6 +3201,9 @@ const PATCH = {
     'Spears: first enemy in the line takes 130%, each one behind 40% less; swords alternate stab and slash at the biggest group',
     'After a freeze, stun or root ends, that enemy is immune to them for 2.5s; freeze and stun duration caps raised',
     'New enemy traits from wave 6: Bulwark (resists area), Phased (resists single-target), Warded (resists abilities) — each weak to the opposite',
+    'Overtime on every wave: 30s up to wave 20, then 5s sooner after each boss; it now speeds up your weapons and abilities as well as enemies',
+    'Damage upgrades have no caps (Shatter keeps its 8% cap)',
+    'A kept card comes back unlocked; new Ban button removes an upgrade for the run (3 per run)',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
@@ -3230,11 +3238,11 @@ function renderLevelUp() {
     else main = `<div class="el" style="color:var(--dim)">Stat</div><div class="big">${c.pr.t(c.pv)}</div>`;
     return `<div class="card flat ${c.locked ? 'kept' : ''}" style="--c:${c.el ? COL[c.el.c] : c.combo ? 'var(--gold)' : '#666'}">${main}
       ${c.el || c.combo ? `<div class="sec"><small>Bonus stat ${c.rare ? '<span class="rare">RARE</span>' : ''}</small>${c.pr.t(c.pv)}</div>` : ''}
-      <div class="row" style="margin-top:auto"><button class="btn go wide" data-act="perk:${i}">Take</button><button class="btn ${c.locked ? 'on' : ''}" data-act="lvlock:${i}">${c.locked ? '🔒 Kept' : 'Keep'}</button></div></div>`;
+      <div class="row" style="margin-top:auto"><button class="btn go wide" data-act="perk:${i}">Take</button><button class="btn ${c.locked ? 'on' : ''}" data-act="lvlock:${i}">${c.locked ? '🔒 Kept' : 'Keep'}</button>${c.el && (S.bans || []).length < BANS ? `<button class="btn" data-act="lvban:${i}" title="Ban this upgrade for the rest of the run">Ban</button>` : ''}</div></div>`;
   }).join('');
   showScreen(sheet({ small: true, title: `<h2 style="color:var(--xp)">Level up</h2>`, sub: S.pendingLv > 1 ? `${S.pendingLv} level-ups to spend` : 'Choose one upgrade',
     right: `<button class="btn" data-act="lvreroll" ${S.lvRerolls > 0 ? '' : 'disabled'}>Reroll (${S.lvRerolls})</button>`,
-    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
+    body: `<div class="grid3">${cards}</div><p class="hint" style="margin:10px 0 0">“Keep” holds one card for your next level-up. “Ban” removes an upgrade for the rest of the run (${BANS - (S.bans || []).length} left). Upgrades lean towards the elements you use and leave the pool once maxed. With 2 of each of two or three elements, every 5th level-up upgrades them all at once. Every level also gives +3 max HP, +1.5% damage, +0.75% attack speed, +0.6 armor and +0.08 HP regen.</p>` }), 'levelup');
 }
 function renderRelic() {
   saveRun();
@@ -3379,6 +3387,14 @@ function act(a, arg) {
   if (a === 'perk') { choosePerk(+arg); return; }
   if (a === 'relic') { takeRelic(arg); return; }
   if (a === 'lvreroll') { if (S.lvRerolls > 0) { S.lvRerolls--; sfx('click'); S.lockedCards = S.perkOffer.filter(c => c.locked).map(c => ({ ...c, locked: false })); S.perkOffer = rollLevelCards(); renderLevelUp(); } return; }
+  if (a === 'lvban') {   // ban an upgrade for the rest of the run and replace the card
+    const c = S.perkOffer[+arg]; if (!c || !c.el || (S.bans || []).length >= BANS) return;
+    (S.bans = S.bans || []).push(c.el.c + ':' + c.el.d.k); sfx('click');
+    const have = new Set(S.perkOffer.filter(x => x !== c && x.el).map(x => x.el.c + x.el.d.k));
+    const fresh = rollLevelCards().find(x => !x.locked && (!x.el || !have.has(x.el.c + x.el.d.k))) || null;
+    if (fresh) S.perkOffer[+arg] = fresh; else S.perkOffer.splice(+arg, 1);
+    saveRun(); renderLevelUp(); return;
+  }
   if (a === 'lvlock') { const c = S.perkOffer[+arg]; if (c) { const on = !c.locked; S.perkOffer.forEach(x => { x.locked = false; }); c.locked = on; sfx('click'); renderLevelUp(); } return; }   // only one card can be kept
   if (S.phase !== 'shop') return;
   const g = S.gold;
@@ -3475,7 +3491,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, freeze, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, otStart, freeze, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)
