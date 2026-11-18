@@ -138,3 +138,4 @@ h3 span{text-transform:none;letter-spacing:.02em}
 .ptag.new{background:#2f6b3a;color:#c9ffd4}
 .ptag.chg{background:#6b552f;color:#ffe9b8}
 .note.gold{background:#1c180e;border-color:#5a4a1f;border-left-color:var(--gold)}
+.btn.bad{background:#5a1d22;border-color:#b2454d;color:#ffd7da}

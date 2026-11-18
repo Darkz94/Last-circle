@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 36,
+  v: 37,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -136,6 +136,7 @@ const PATCH = {
     'Overtime on every wave: 30s up to wave 20, then 5s sooner after each boss; it now speeds up your weapons and abilities as well as enemies',
     'Damage upgrades have no caps (Shatter keeps its 8% cap)',
     'A kept card comes back unlocked; new Ban button removes an upgrade for the run (3 per run)',
+    'Forfeit run: from the pause menu or the shop, end the run and go to your stats',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
@@ -220,7 +221,7 @@ function renderShop() {
   const nw = S.wave + 1;
   showScreen(sheet({ title: '<h2>Shop</h2>', sub: `Wave ${S.wave} cleared`, right: `<div class="goldbox">${g}</div>`,
     tabs: [['shop', 'Shop'], ['weapons', `Weapons ${S.weapons.length}/6`], ['bonus', 'Bonuses'], ['stats', 'Stats']], tab: UI.tab, tabAct: 'tab', body,
-    foot: `<button class="btn go wide" data-act="next">Wave ${nw}${nw % 10 === 0 ? ' · Boss' : nw === 21 ? ' · Endless' : ''} ▶</button>` }), 'shop:' + UI.tab);
+    foot: `<button class="btn ${UI.ffArm ? 'bad' : ''}" data-act="forfeit">${UI.ffArm ? 'Tap again to forfeit' : 'Forfeit run'}</button><button class="btn go wide" data-act="next">Wave ${nw}${nw % 10 === 0 ? ' · Boss' : nw === 21 ? ' · Endless' : ''} ▶</button>` }), 'shop:' + UI.tab);
 }
 
 // ---- pause / game over
@@ -233,6 +234,7 @@ function renderPause() {
   let body;
   if (UI.ptab === 'menu') body = `<div class="row"><button class="btn go wide" data-act="resume">Resume</button></div><div class="row" style="margin-top:10px">${audioBtns()}</div>
     <div class="row" style="margin-top:10px"><button class="btn wide" data-act="quit">Save &amp; quit to menu</button></div>
+    <div class="row" style="margin-top:10px"><button class="btn wide ${UI.ffArm ? 'bad' : ''}" data-act="forfeit">${UI.ffArm ? 'Tap again to forfeit' : 'Forfeit run'}</button></div>
     <p class="hint">Your run is saved at the start of every wave. Quitting now brings you back to the start of wave ${S.wave}.</p>`;
   else if (UI.ptab === 'bonus') body = countChips() + elemSetsHtml(S.runSets, S.counts) + '<h3>Synergies</h3>' + synHtml(S.synRoll, S.counts) + typeSetsHtml(S.typeSets, S.tcounts);
   else body = statsHtml();
@@ -314,7 +316,11 @@ function act(a, arg) {
   if (a === 'ptab') { UI.ptab = arg; renderPause(); return; }
   if (a === 'runstats') { sfx('click'); UI.rtab = arg || 'high'; renderRunStats(); return; }
   if (a === 'deadback') { sfx('click'); renderDead(); return; }
-  if (a === 'resume') { togglePause(); return; }
+  if (a === 'resume') { UI.ffArm = false; togglePause(); return; }
+  if (a === 'forfeit') {   // end the run as if you died: stats screen, best wave saved, save cleared (two taps)
+    if (!UI.ffArm) { UI.ffArm = true; sfx('click'); if (paused) renderPause(); else renderShop(); clearTimeout(UI.ffT); UI.ffT = setTimeout(() => { UI.ffArm = false; if (S && paused) renderPause(); else if (S && S.phase === 'shop') renderShop(); }, 3000); return; }
+    UI.ffArm = false; clearTimeout(UI.ffT); paused = false; gameOver(); return;
+  }
   if (a === 'tab') { UI.tab = arg; renderShop(); return; }
   if (a === 'perk') { choosePerk(+arg); return; }
   if (a === 'relic') { takeRelic(arg); return; }
