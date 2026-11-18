@@ -1,1 +1,1 @@
-{ "version": 38, "notes": "Cooldown reduction keeps working until your slowest ability is at 1s. Forfeit run from the pause menu or shop." }
+{ "version": 39, "notes": "Smoother big fights: gold and XP clump together, and effects simplify automatically when the frame rate drops." }

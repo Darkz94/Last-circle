@@ -59,8 +59,17 @@ addEventListener('resize', resize);
 
 // ---- main loop: the simulation always advances in fixed 1/60s steps, however fast the screen refreshes
 let last = performance.now(), acc = 0;
+// ---- auto quality: when the frame rate sags in a fight, effects get simpler; when it recovers they come back
+let gfxEma = 1 / 60, gfxBad = 0, gfxGood = 0;
+function gfxWatch(ft) {
+  gfxEma += (ft - gfxEma) * .1;
+  if (gfxEma > 1 / 47) { gfxBad += ft; gfxGood = 0; if (gfxBad > .6 && GFX < 2) { GFX++; gfxBad = 0; } }
+  else if (gfxEma < 1 / 56) { gfxGood += ft; gfxBad = 0; if (gfxGood > 6 && GFX > 0) { GFX--; gfxGood = 0; } }
+  else { gfxBad = Math.max(0, gfxBad - ft); }
+}
 function loop(now) {
   const ft = Math.min(.1, (now - last) / 1000); last = now;
+  if (S && S.phase === 'fight' && !paused && !document.hidden) gfxWatch(ft);
   if (S && S.phase === 'fight' && !paused) {
     acc += ft;
     let n = 0;
@@ -74,7 +83,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, mergeDrops, get GFX() { return GFX; }, set GFX(v) { GFX = v; }, gfxWatch, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)

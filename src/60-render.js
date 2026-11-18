@@ -96,15 +96,15 @@ function draw() {
   // ---- loot
   const blink = S.collectT !== null && S.collectT < 1.2 && Math.floor(S.collectT * 10) % 2 === 0;
   if (!blink) for (const d of S.drops) {
-    const b = 1 + Math.sin(T * 6 + d.ph) * .15, y = d.y - d.z;
-    c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(d.x, d.y + 3, 4, 1.8, 0, 0, TAU); c.fill();
+    const b = 1 + Math.sin(T * 6 + d.ph) * .15, y = d.y - d.z, big = d.n > 1 ? 1 + Math.min(.9, Math.log2(d.n) * .18) : 1;   // clumped drops grow
+    if (!GFX) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(d.x, d.y + 3, 4 * big, 1.8 * big, 0, 0, TAU); c.fill(); }
     if (d.k === 'gold') {
-      c.fillStyle = 'rgba(242,193,78,.2)'; c.beginPath(); c.arc(d.x, y, 9 * b, 0, TAU); c.fill();
-      c.fillStyle = '#f2c14e'; c.beginPath(); c.arc(d.x, y, 4.6, 0, TAU); c.fill();
-      c.fillStyle = '#fff2c4'; c.beginPath(); c.arc(d.x - 1.3, y - 1.3, 1.5, 0, TAU); c.fill();
+      if (!GFX || big > 1) { c.fillStyle = 'rgba(242,193,78,.2)'; c.beginPath(); c.arc(d.x, y, 9 * b * big, 0, TAU); c.fill(); }
+      c.fillStyle = '#f2c14e'; c.beginPath(); c.arc(d.x, y, 4.6 * big, 0, TAU); c.fill();
+      if (GFX < 2) { c.fillStyle = '#fff2c4'; c.beginPath(); c.arc(d.x - 1.3 * big, y - 1.3 * big, 1.5 * big, 0, TAU); c.fill(); }
     } else {
-      const s2 = 5.2 * b * (d.v >= 4 ? 1.35 : 1);
-      c.fillStyle = 'rgba(155,140,255,.2)'; c.beginPath(); c.arc(d.x, y, s2 * 1.9, 0, TAU); c.fill();
+      const s2 = 5.2 * b * (d.v >= 4 ? 1.35 : 1) * big;
+      if (!GFX || big > 1) { c.fillStyle = 'rgba(155,140,255,.2)'; c.beginPath(); c.arc(d.x, y, s2 * 1.9, 0, TAU); c.fill(); }
       c.fillStyle = '#b4a8ff'; c.beginPath(); c.moveTo(d.x, y - s2); c.lineTo(d.x + s2 * .8, y); c.lineTo(d.x, y + s2); c.lineTo(d.x - s2 * .8, y); c.closePath(); c.fill();
       c.fillStyle = '#e6e0ff'; c.beginPath(); c.moveTo(d.x, y - s2); c.lineTo(d.x + s2 * .8, y); c.lineTo(d.x, y); c.closePath(); c.fill();
     }
@@ -146,7 +146,7 @@ function draw() {
   }
 
   // ---- glowing effects (additive). Dimmed when the screen is crowded so enemies stay readable.
-  c.globalCompositeOperation = 'lighter';
+  c.globalCompositeOperation = GFX > 1 ? 'source-over' : 'lighter';
   const fa = S.enemies.length > 70 ? .6 : 1;
   for (const f of S.projs) {
     if (f.k === 'fireball') { c.fillStyle = 'rgba(255,90,40,.35)'; c.beginPath(); c.arc(f.x, f.y, 14, 0, TAU); c.fill(); c.fillStyle = '#ffd080'; c.beginPath(); c.arc(f.x, f.y, 6, 0, TAU); c.fill(); }
@@ -427,6 +427,7 @@ function drawFx(c, f, fa) {
       c.strokeStyle = rgba(f.col, a); c.lineWidth = f.evo ? 7 : 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
       c.strokeStyle = `rgba(255,255,255,${a})`; c.lineWidth = 1.5; c.stroke(); break; }
     case 'boom':
+      if (GFX) { c.strokeStyle = rgba(f.col, a); c.lineWidth = GFX > 1 ? 2 : 3; c.beginPath(); c.arc(f.x, f.y, f.r * (.5 + k * .5), 0, TAU); c.stroke(); break; }   // low quality: just the ring
       c.fillStyle = rgba(f.col, .26 * a); c.beginPath(); c.arc(f.x, f.y, f.r * (.4 + k * .6), 0, TAU); c.fill();
       c.strokeStyle = rgba(f.col, a); c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, f.r * (.5 + k * .5), 0, TAU); c.stroke();
       if (k < .25) { c.fillStyle = `rgba(255,255,255,${(.25 - k) * 2.4 * fa})`; c.beginPath(); c.arc(f.x, f.y, f.r * .45, 0, TAU); c.fill(); } break;

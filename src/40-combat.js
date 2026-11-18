@@ -7,16 +7,19 @@ const areaM = () => AREA_ON ? (tot.areaM || 1) : 1;
 function inArea(f) { AREA_ON++; try { return f(); } finally { AREA_ON--; } }
 function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) inArea(() => h.a[n](h.a, h.s, a1, a2, a3)); }
 const later = (t, f) => S.later.push({ t, f: AREA_ON ? () => inArea(f) : f });
-function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < 420) S.fx.push(o); }
+function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < (GFX ? GFX > 1 ? 160 : 260 : 420)) S.fx.push(o); }
 function pushZone(z) { z.r *= areaM(); S.zones.push(z); }
+const ptCap = n => GFX ? n * (GFX > 1 ? .23 : .5) : n;   // fewer particles at lower quality
 function puff(x, y, col, n, spd, life) {
-  for (let i = 0; i < n && S.pt.length < 520; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
+  if (GFX) n = Math.round(n * (GFX > 1 ? .25 : .5));
+  const cap = ptCap(520);
+  for (let i = 0; i < n && S.pt.length < cap; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
 }
 function banner(text, small) { S.banner = { text, t: small ? .2 : 0, small }; }
 function hitstop(t) { if (S.time - S.lastStop > .45) { S.hitstop = t; S.lastStop = S.time; } }
 function heal(v) { const b = S.p.hp; S.p.hp = Math.min(tot.maxHp, S.p.hp + v); if (S.rs) S.rs.healed += Math.max(0, S.p.hp - b); }
 function addText(x, y, v, col, crit) {
-  if (S.texts.length > 46) S.texts.shift();
+  while (S.texts.length > (GFX ? GFX > 1 ? 12 : 24 : 46)) S.texts.shift();
   S.texts.push({ x, y, s: String(Math.max(1, Math.round(v))) + (crit ? '!' : ''), col, crit, t: 0, big: v > S.avg * 4 });
 }
 // damage numbers are merged per enemy so a busy fight stays readable
@@ -245,7 +248,20 @@ function addDrop(k, v, x, y) {
   const a = Math.random() * TAU, sp = rnd(40, 120);
   S.drops.push({ k, v, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, z: 0, vz: rnd(120, 220), mag: false, ph: Math.random() * TAU });
 }
+// nearby drops of the same kind clump into one worth more, so a big fight doesn't bury the floor in loot
+function mergeDrops() {
+  if (S.drops.length < 24) return;
+  const cell = S.drops.length > 80 ? 64 : 44, grid = new Map(), keep = [];
+  for (const d of S.drops) {
+    if (d.mag) { keep.push(d); continue; }
+    const key = d.k + ((d.x / cell) | 0) + ',' + ((d.y / cell) | 0), o = grid.get(key);
+    if (o) { o.v += d.v; o.n = (o.n || 1) + (d.n || 1); } else { grid.set(key, d); keep.push(d); }
+  }
+  S.drops = keep;
+}
 function updDrops(dt) {
+  S.mergeT = (S.mergeT || 0) - dt;
+  if (S.mergeT <= 0) { S.mergeT = .2; mergeDrops(); }
   const p = S.p, collecting = S.collectT !== null;
   const pr = tot.pickR * (collecting ? 1.6 : 1) * (1 + ((S.buff && S.buff.pick) || 0));
   for (const d of S.drops) {
@@ -258,7 +274,7 @@ function updDrops(dt) {
     if (dist < PR + 7) {
       d.got = true;
       if (d.k === 'gold') { S.gold += d.v; S.rs.gold += d.v; sfx('coin'); } else { gainXp(d.v * (rel('scholar') ? 1.3 : 1)); sfx('xp'); }
-      if (rel('magnet')) heal(1);
+      if (rel('magnet')) heal(d.n || 1);
     }
   }
   S.drops = S.drops.filter(d => !d.got);

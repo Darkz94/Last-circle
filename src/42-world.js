@@ -54,7 +54,7 @@ function updEnemies(dt) {
         const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
         if (d > 0) dmg(e, d * fx2 * summerBurn(), { col: '#ff8a4a', dot: true, src: 'burn' });   // armor reduces burns
       }
-      if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
+      if (Math.random() < .2 && S.pt.length < ptCap(400)) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
       if (e.burnT <= 0) e.bs = [];
       if (e.dead) continue;
     }
@@ -137,7 +137,7 @@ function updProjectiles(dt) {
   for (const f of S.projs) {
     f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt;
     if (f.k === 'fireball') {
-      if (S.pt.length < 400) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
+      if (S.pt.length < ptCap(400)) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
       let hit = false; grid.near(f.x, f.y, 72, e => { if (!hit && !e.dead && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 8) hit = true; });
       if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, {}); }
     } else if (f.k === 'boulder') {
@@ -161,7 +161,7 @@ function updProjectiles(dt) {
     fl.t += dt; fl.tick -= dt;
     const tg = nearest(p.x, p.y, fl.rg + 40);
     if (tg) fl.dir += clamp(angDiff(Math.atan2(tg.y - p.y, tg.x - p.x), fl.dir), -3 * dt, 3 * dt);
-    for (let i = 0; i < 3 && S.pt.length < 480; i++) { const a = fl.dir + rnd(-.5, .5), sp = rnd(180, 320); S.pt.push({ x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: fl.rg / 320, col: pick(['#ff7a2a', '#ffb347', '#ff5a3c']), sz: rnd(3, 6) }); }
+    for (let i = 0; i < 3 && S.pt.length < ptCap(480); i++) { const a = fl.dir + rnd(-.5, .5), sp = rnd(180, 320); S.pt.push({ x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: fl.rg / 320, col: pick(['#ff7a2a', '#ffb347', '#ff5a3c']), sz: rnd(3, 6) }); }
     if (fl.tick <= 0) { fl.tick = .15; eachNear(p.x, p.y, fl.rg, e => { if (inCone(e, p.x, p.y, fl.dir, .55, fl.rg)) { dmg(e, fl.dmg, { col: COL.red }); burn(e, burnFrom(fl.dmg * 3)); } }); }
   }
   S.flames = S.flames.filter(f => f.t < f.dur);
@@ -172,7 +172,7 @@ function updProjectiles(dt) {
   S.rings = S.rings.filter(rg => rg.r < rg.max);
   for (const z of S.zones) {
     z.life -= dt; z.tick -= dt;
-    if (z.k === 'snow' && Math.random() < .6 && S.pt.length < 480) S.pt.push({ x: z.x + rnd(-z.r, z.r), y: z.y + rnd(-z.r, z.r), vx: rnd(-60, -20), vy: rnd(20, 60), t: 0, life: .5, col: '#e8f8ff', sz: 2 });
+    if (z.k === 'snow' && Math.random() < .6 && S.pt.length < ptCap(480)) S.pt.push({ x: z.x + rnd(-z.r, z.r), y: z.y + rnd(-z.r, z.r), vx: rnd(-60, -20), vy: rnd(20, 60), t: 0, life: .5, col: '#e8f8ff', sz: 2 });
     if (z.tick > 0) continue;
     z.tick = .3;
     if (z.k === 'storm') { z.tick = z.int; const inside = []; eachNear(z.x, z.y, z.r, e => inside.push(e)); if (inside.length) bolt(pick(inside), STRIKER, { noChain: true }); }
@@ -207,7 +207,7 @@ function updSummons(dt) {
       if (tg && d < 110) { sp.state = 'leap'; sp.vx = dx / d * 430; sp.vy = dy / d * 430; sp.lt = .45; sfx('whoosh'); }
     } else {
       sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.lt -= dt;
-      if (S.pt.length < 480) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
+      if (S.pt.length < ptCap(480)) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
       let hit = sp.lt <= 0; if (!hit) grid.near(sp.x, sp.y, 72, e => { if (!e.dead && Math.hypot(e.x - sp.x, e.y - sp.y) < e.r + 7) hit = true; });
       if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, {}); sp.life = 0; }
     }

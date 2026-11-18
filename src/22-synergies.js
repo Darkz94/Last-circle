@@ -140,7 +140,7 @@ F.volcano.fire = () => {
 F.volcano.frame = (a, s, dt) => {
   for (const v of S.vents) {
     v.life -= dt; v.tick -= dt;
-    if (S.pt.length < 460) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
+    if (S.pt.length < ptCap(460)) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
     if (v.tick > 0) continue;
     v.tick = .28;
     const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240 * areaM()));

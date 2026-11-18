@@ -1,5 +1,6 @@
 // ===== core: constants and small helpers
-const GAME_VERSION = 38;
+const GAME_VERSION = 39;
+let GFX = 0;   // auto quality: 0 full, 1 reduced, 2 minimal (set by the main loop)
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };

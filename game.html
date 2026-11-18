@@ -177,7 +177,8 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 38;
+const GAME_VERSION = 39;
+let GFX = 0;   // auto quality: 0 full, 1 reduced, 2 minimal (set by the main loop)
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -907,7 +908,7 @@ F.volcano.fire = () => {
 F.volcano.frame = (a, s, dt) => {
   for (const v of S.vents) {
     v.life -= dt; v.tick -= dt;
-    if (S.pt.length < 460) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
+    if (S.pt.length < ptCap(460)) S.pt.push({ x: v.x + rnd(-6, 6), y: v.y, vx: rnd(-30, 30), vy: rnd(-120, -60), t: 0, life: .5, col: pick(['#ff7a2a', '#ffd23f', '#8a7350']), sz: 3 });
     if (v.tick > 0) continue;
     v.tick = .28;
     const t = pick(S.enemies.filter(e => !e.dead && Math.hypot(e.x - v.x, e.y - v.y) < 240 * areaM()));
@@ -1344,16 +1345,19 @@ const areaM = () => AREA_ON ? (tot.areaM || 1) : 1;
 function inArea(f) { AREA_ON++; try { return f(); } finally { AREA_ON--; } }
 function emit(n, a1, a2, a3) { const hs = S.hk[n]; if (hs) for (const h of hs) inArea(() => h.a[n](h.a, h.s, a1, a2, a3)); }
 const later = (t, f) => S.later.push({ t, f: AREA_ON ? () => inArea(f) : f });
-function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < 420) S.fx.push(o); }
+function FX(o) { o.t = 0; if (AREA_ON && o.r) o.r *= tot.areaM || 1; if (S.fx.length < (GFX ? GFX > 1 ? 160 : 260 : 420)) S.fx.push(o); }
 function pushZone(z) { z.r *= areaM(); S.zones.push(z); }
+const ptCap = n => GFX ? n * (GFX > 1 ? .23 : .5) : n;   // fewer particles at lower quality
 function puff(x, y, col, n, spd, life) {
-  for (let i = 0; i < n && S.pt.length < 520; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
+  if (GFX) n = Math.round(n * (GFX > 1 ? .25 : .5));
+  const cap = ptCap(520);
+  for (let i = 0; i < n && S.pt.length < cap; i++) { const a = Math.random() * TAU, v = spd * rnd(.3, 1); S.pt.push({ x, y, vx: Math.cos(a) * v, vy: Math.sin(a) * v, t: 0, life: life * rnd(.6, 1), col, sz: rnd(1.5, 3.5) }); }
 }
 function banner(text, small) { S.banner = { text, t: small ? .2 : 0, small }; }
 function hitstop(t) { if (S.time - S.lastStop > .45) { S.hitstop = t; S.lastStop = S.time; } }
 function heal(v) { const b = S.p.hp; S.p.hp = Math.min(tot.maxHp, S.p.hp + v); if (S.rs) S.rs.healed += Math.max(0, S.p.hp - b); }
 function addText(x, y, v, col, crit) {
-  if (S.texts.length > 46) S.texts.shift();
+  while (S.texts.length > (GFX ? GFX > 1 ? 12 : 24 : 46)) S.texts.shift();
   S.texts.push({ x, y, s: String(Math.max(1, Math.round(v))) + (crit ? '!' : ''), col, crit, t: 0, big: v > S.avg * 4 });
 }
 // damage numbers are merged per enemy so a busy fight stays readable
@@ -1582,7 +1586,20 @@ function addDrop(k, v, x, y) {
   const a = Math.random() * TAU, sp = rnd(40, 120);
   S.drops.push({ k, v, x, y, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, z: 0, vz: rnd(120, 220), mag: false, ph: Math.random() * TAU });
 }
+// nearby drops of the same kind clump into one worth more, so a big fight doesn't bury the floor in loot
+function mergeDrops() {
+  if (S.drops.length < 24) return;
+  const cell = S.drops.length > 80 ? 64 : 44, grid = new Map(), keep = [];
+  for (const d of S.drops) {
+    if (d.mag) { keep.push(d); continue; }
+    const key = d.k + ((d.x / cell) | 0) + ',' + ((d.y / cell) | 0), o = grid.get(key);
+    if (o) { o.v += d.v; o.n = (o.n || 1) + (d.n || 1); } else { grid.set(key, d); keep.push(d); }
+  }
+  S.drops = keep;
+}
 function updDrops(dt) {
+  S.mergeT = (S.mergeT || 0) - dt;
+  if (S.mergeT <= 0) { S.mergeT = .2; mergeDrops(); }
   const p = S.p, collecting = S.collectT !== null;
   const pr = tot.pickR * (collecting ? 1.6 : 1) * (1 + ((S.buff && S.buff.pick) || 0));
   for (const d of S.drops) {
@@ -1595,7 +1612,7 @@ function updDrops(dt) {
     if (dist < PR + 7) {
       d.got = true;
       if (d.k === 'gold') { S.gold += d.v; S.rs.gold += d.v; sfx('coin'); } else { gainXp(d.v * (rel('scholar') ? 1.3 : 1)); sfx('xp'); }
-      if (rel('magnet')) heal(1);
+      if (rel('magnet')) heal(d.n || 1);
     }
   }
   S.drops = S.drops.filter(d => !d.got);
@@ -1850,7 +1867,7 @@ function updEnemies(dt) {
         const fx2 = syn('frostfire2') >= 0 && isCold(e) ? (syn('frostfire2') ? 2.5 : 1.5) : 1;
         if (d > 0) dmg(e, d * fx2 * summerBurn(), { col: '#ff8a4a', dot: true, src: 'burn' });   // armor reduces burns
       }
-      if (Math.random() < .2 && S.pt.length < 400) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
+      if (Math.random() < .2 && S.pt.length < ptCap(400)) S.pt.push({ x: e.x + rnd(-e.r, e.r), y: e.y + rnd(-e.r, e.r * .3), vx: rnd(-10, 10), vy: rnd(-55, -25), t: 0, life: .4, col: Math.random() < .5 ? '#ff7a2a' : '#ffc14a', sz: 2.5 });
       if (e.burnT <= 0) e.bs = [];
       if (e.dead) continue;
     }
@@ -1933,7 +1950,7 @@ function updProjectiles(dt) {
   for (const f of S.projs) {
     f.x += f.vx * dt; f.y += f.vy * dt; f.life -= dt;
     if (f.k === 'fireball') {
-      if (S.pt.length < 400) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
+      if (S.pt.length < ptCap(400)) S.pt.push({ x: f.x, y: f.y, vx: rnd(-25, 25), vy: rnd(-25, 25), t: 0, life: .3, col: '#ff9a3c', sz: 3 });
       let hit = false; grid.near(f.x, f.y, 72, e => { if (!hit && !e.dead && Math.hypot(e.x - f.x, e.y - f.y) < e.r + 8) hit = true; });
       if (hit) { f.life = 0; boom(f.x, f.y, f.rad, f.dmg, FIRE, {}); }
     } else if (f.k === 'boulder') {
@@ -1957,7 +1974,7 @@ function updProjectiles(dt) {
     fl.t += dt; fl.tick -= dt;
     const tg = nearest(p.x, p.y, fl.rg + 40);
     if (tg) fl.dir += clamp(angDiff(Math.atan2(tg.y - p.y, tg.x - p.x), fl.dir), -3 * dt, 3 * dt);
-    for (let i = 0; i < 3 && S.pt.length < 480; i++) { const a = fl.dir + rnd(-.5, .5), sp = rnd(180, 320); S.pt.push({ x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: fl.rg / 320, col: pick(['#ff7a2a', '#ffb347', '#ff5a3c']), sz: rnd(3, 6) }); }
+    for (let i = 0; i < 3 && S.pt.length < ptCap(480); i++) { const a = fl.dir + rnd(-.5, .5), sp = rnd(180, 320); S.pt.push({ x: p.x + Math.cos(a) * 14, y: p.y + Math.sin(a) * 14, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, t: 0, life: fl.rg / 320, col: pick(['#ff7a2a', '#ffb347', '#ff5a3c']), sz: rnd(3, 6) }); }
     if (fl.tick <= 0) { fl.tick = .15; eachNear(p.x, p.y, fl.rg, e => { if (inCone(e, p.x, p.y, fl.dir, .55, fl.rg)) { dmg(e, fl.dmg, { col: COL.red }); burn(e, burnFrom(fl.dmg * 3)); } }); }
   }
   S.flames = S.flames.filter(f => f.t < f.dur);
@@ -1968,7 +1985,7 @@ function updProjectiles(dt) {
   S.rings = S.rings.filter(rg => rg.r < rg.max);
   for (const z of S.zones) {
     z.life -= dt; z.tick -= dt;
-    if (z.k === 'snow' && Math.random() < .6 && S.pt.length < 480) S.pt.push({ x: z.x + rnd(-z.r, z.r), y: z.y + rnd(-z.r, z.r), vx: rnd(-60, -20), vy: rnd(20, 60), t: 0, life: .5, col: '#e8f8ff', sz: 2 });
+    if (z.k === 'snow' && Math.random() < .6 && S.pt.length < ptCap(480)) S.pt.push({ x: z.x + rnd(-z.r, z.r), y: z.y + rnd(-z.r, z.r), vx: rnd(-60, -20), vy: rnd(20, 60), t: 0, life: .5, col: '#e8f8ff', sz: 2 });
     if (z.tick > 0) continue;
     z.tick = .3;
     if (z.k === 'storm') { z.tick = z.int; const inside = []; eachNear(z.x, z.y, z.r, e => inside.push(e)); if (inside.length) bolt(pick(inside), STRIKER, { noChain: true }); }
@@ -2003,7 +2020,7 @@ function updSummons(dt) {
       if (tg && d < 110) { sp.state = 'leap'; sp.vx = dx / d * 430; sp.vy = dy / d * 430; sp.lt = .45; sfx('whoosh'); }
     } else {
       sp.x += sp.vx * dt; sp.y += sp.vy * dt; sp.lt -= dt;
-      if (S.pt.length < 480) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
+      if (S.pt.length < ptCap(480)) S.pt.push({ x: sp.x, y: sp.y, vx: rnd(-30, 30), vy: rnd(-30, 30), t: 0, life: .3, col: '#ffb347', sz: 3 });
       let hit = sp.lt <= 0; if (!hit) grid.near(sp.x, sp.y, 72, e => { if (!e.dead && Math.hypot(e.x - sp.x, e.y - sp.y) < e.r + 7) hit = true; });
       if (hit) { boom(sp.x, sp.y, sp.r, sp.dmg, FIRE, {}); sp.life = 0; }
     }
@@ -2708,15 +2725,15 @@ function draw() {
   // ---- loot
   const blink = S.collectT !== null && S.collectT < 1.2 && Math.floor(S.collectT * 10) % 2 === 0;
   if (!blink) for (const d of S.drops) {
-    const b = 1 + Math.sin(T * 6 + d.ph) * .15, y = d.y - d.z;
-    c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(d.x, d.y + 3, 4, 1.8, 0, 0, TAU); c.fill();
+    const b = 1 + Math.sin(T * 6 + d.ph) * .15, y = d.y - d.z, big = d.n > 1 ? 1 + Math.min(.9, Math.log2(d.n) * .18) : 1;   // clumped drops grow
+    if (!GFX) { c.fillStyle = 'rgba(0,0,0,.25)'; c.beginPath(); c.ellipse(d.x, d.y + 3, 4 * big, 1.8 * big, 0, 0, TAU); c.fill(); }
     if (d.k === 'gold') {
-      c.fillStyle = 'rgba(242,193,78,.2)'; c.beginPath(); c.arc(d.x, y, 9 * b, 0, TAU); c.fill();
-      c.fillStyle = '#f2c14e'; c.beginPath(); c.arc(d.x, y, 4.6, 0, TAU); c.fill();
-      c.fillStyle = '#fff2c4'; c.beginPath(); c.arc(d.x - 1.3, y - 1.3, 1.5, 0, TAU); c.fill();
+      if (!GFX || big > 1) { c.fillStyle = 'rgba(242,193,78,.2)'; c.beginPath(); c.arc(d.x, y, 9 * b * big, 0, TAU); c.fill(); }
+      c.fillStyle = '#f2c14e'; c.beginPath(); c.arc(d.x, y, 4.6 * big, 0, TAU); c.fill();
+      if (GFX < 2) { c.fillStyle = '#fff2c4'; c.beginPath(); c.arc(d.x - 1.3 * big, y - 1.3 * big, 1.5 * big, 0, TAU); c.fill(); }
     } else {
-      const s2 = 5.2 * b * (d.v >= 4 ? 1.35 : 1);
-      c.fillStyle = 'rgba(155,140,255,.2)'; c.beginPath(); c.arc(d.x, y, s2 * 1.9, 0, TAU); c.fill();
+      const s2 = 5.2 * b * (d.v >= 4 ? 1.35 : 1) * big;
+      if (!GFX || big > 1) { c.fillStyle = 'rgba(155,140,255,.2)'; c.beginPath(); c.arc(d.x, y, s2 * 1.9, 0, TAU); c.fill(); }
       c.fillStyle = '#b4a8ff'; c.beginPath(); c.moveTo(d.x, y - s2); c.lineTo(d.x + s2 * .8, y); c.lineTo(d.x, y + s2); c.lineTo(d.x - s2 * .8, y); c.closePath(); c.fill();
       c.fillStyle = '#e6e0ff'; c.beginPath(); c.moveTo(d.x, y - s2); c.lineTo(d.x + s2 * .8, y); c.lineTo(d.x, y); c.closePath(); c.fill();
     }
@@ -2758,7 +2775,7 @@ function draw() {
   }
 
   // ---- glowing effects (additive). Dimmed when the screen is crowded so enemies stay readable.
-  c.globalCompositeOperation = 'lighter';
+  c.globalCompositeOperation = GFX > 1 ? 'source-over' : 'lighter';
   const fa = S.enemies.length > 70 ? .6 : 1;
   for (const f of S.projs) {
     if (f.k === 'fireball') { c.fillStyle = 'rgba(255,90,40,.35)'; c.beginPath(); c.arc(f.x, f.y, 14, 0, TAU); c.fill(); c.fillStyle = '#ffd080'; c.beginPath(); c.arc(f.x, f.y, 6, 0, TAU); c.fill(); }
@@ -3039,6 +3056,7 @@ function drawFx(c, f, fa) {
       c.strokeStyle = rgba(f.col, a); c.lineWidth = f.evo ? 7 : 5; c.lineCap = 'round'; c.beginPath(); c.moveTo(x1, y1); c.lineTo(x2, y2); c.stroke();
       c.strokeStyle = `rgba(255,255,255,${a})`; c.lineWidth = 1.5; c.stroke(); break; }
     case 'boom':
+      if (GFX) { c.strokeStyle = rgba(f.col, a); c.lineWidth = GFX > 1 ? 2 : 3; c.beginPath(); c.arc(f.x, f.y, f.r * (.5 + k * .5), 0, TAU); c.stroke(); break; }   // low quality: just the ring
       c.fillStyle = rgba(f.col, .26 * a); c.beginPath(); c.arc(f.x, f.y, f.r * (.4 + k * .6), 0, TAU); c.fill();
       c.strokeStyle = rgba(f.col, a); c.lineWidth = 3; c.beginPath(); c.arc(f.x, f.y, f.r * (.5 + k * .5), 0, TAU); c.stroke();
       if (k < .25) { c.fillStyle = `rgba(255,255,255,${(.25 - k) * 2.4 * fa})`; c.beginPath(); c.arc(f.x, f.y, f.r * .45, 0, TAU); c.fill(); } break;
@@ -3180,8 +3198,9 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 38,
-  notes: ['Cooldown reduction: no more 1s limit per ability. It keeps being offered until your slowest timed ability is at 1s (and comes back if you pick up a slower one)',
+  v: 39,
+  notes: ['Smoother big fights: nearby gold and XP clump into bigger drops, and effects get simpler automatically when the frame rate drops (explosions become plain rings, fewer particles)',
+    'Cooldown reduction: no more 1s limit per ability. It keeps being offered until your slowest timed ability is at 1s (and comes back if you pick up a slower one)',
     'Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3487,8 +3506,17 @@ addEventListener('resize', resize);
 
 // ---- main loop: the simulation always advances in fixed 1/60s steps, however fast the screen refreshes
 let last = performance.now(), acc = 0;
+// ---- auto quality: when the frame rate sags in a fight, effects get simpler; when it recovers they come back
+let gfxEma = 1 / 60, gfxBad = 0, gfxGood = 0;
+function gfxWatch(ft) {
+  gfxEma += (ft - gfxEma) * .1;
+  if (gfxEma > 1 / 47) { gfxBad += ft; gfxGood = 0; if (gfxBad > .6 && GFX < 2) { GFX++; gfxBad = 0; } }
+  else if (gfxEma < 1 / 56) { gfxGood += ft; gfxBad = 0; if (gfxGood > 6 && GFX > 0) { GFX--; gfxGood = 0; } }
+  else { gfxBad = Math.max(0, gfxBad - ft); }
+}
 function loop(now) {
   const ft = Math.min(.1, (now - last) / 1000); last = now;
+  if (S && S.phase === 'fight' && !paused && !document.hidden) gfxWatch(ft);
   if (S && S.phase === 'fight' && !paused) {
     acc += ft;
     let n = 0;
@@ -3502,7 +3530,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, mergeDrops, get GFX() { return GFX; }, set GFX(v) { GFX = v; }, gfxWatch, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)
