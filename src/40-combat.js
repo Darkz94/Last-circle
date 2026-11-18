@@ -35,7 +35,7 @@ function dmg(e, amt, o) {
     if (isCold(e)) m *= 1 + E('blue', 'vsChill') / 100;
     const hs = S.hk.mult; if (hs) for (const h of hs) m *= h.a.mult(h.a, h.s, e);
     d *= m;
-    if (!o.pierce) d = Math.max(1, d * armRed(Math.max(0, e.armor - tot.pen - (o.pen || 0))));
+    if (!o.pierce) d = Math.max(1, d * armRed(effArmor(e.armor, tot.pen + (o.pen || 0))));
     if (e.confT > 0) d *= 1.15;   // confused enemies take more
   }
   const rs = S.rs; if (rs && d > 0) { const k = o.src || 'ability'; rs.dealt += d; rs.src[k] = (rs.src[k] || 0) + d; if (d > rs.big && k !== 'execute') { rs.big = d; rs.bigSrc = k; } }
@@ -198,7 +198,7 @@ function thorns(e, k) {
   let raw = (tot.thornFlat * thornGrow() * (1 + tot.dmgPct / 100) + e.dmg * rt / 100) * (k || 1);
   const tcrit = Math.random() * 100 < tot.thornCrit; if (tcrit) raw *= tot.thornCritM;
   if (syn('molten') === 1 && e.burnT > 0) raw *= 2;
-  const td = dmg(e, Math.max(1, raw * armRed(Math.max(0, e.armor - tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns', crit: tcrit });
+  const td = dmg(e, Math.max(1, raw * armRed(effArmor(e.armor, tot.thornPen))), { col: '#e6c882', pierce: true, src: 'thorns', crit: tcrit });
   if (sv('leech')) heal(td * sv('leech') / 100);   // Lifestone
   if (!e.dead && syn('molten') >= 0) burn(e, burnFrom(Math.max(raw, S.ab)));
   if (!e.dead && syn('permafrost') >= 0) chill(e, 2);

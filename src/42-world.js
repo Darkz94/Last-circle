@@ -4,7 +4,7 @@ function spawnEnemy(type, x, y) {
   const hp = type === 'boss' ? BOSS_HP * hpMult(w) : d.hp * hpMult(w);   // boss = about 3x an elite brute
   if (x === undefined) { const a = Math.random() * TAU; x = Math.cos(a) * SPAWN_R; y = Math.sin(a) * SPAWN_R; }
   const e = {
-    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: armorAt(w) * (d.arm || 1),
+    id: S.uid++, type, x, y, r: d.r, hp, maxHp: hp, armor: Math.min(ENEMY_ARM_MAX, armorAt(w) * (d.arm || 1)),
     spd: d.spd * spdMult(w) * rnd(.9, 1.1), dmg: d.dmg * dmgMult(w), gold: d.gold * (1 + w * .04), xp: d.xp,
     col: d.col, shape: d.shape, boss: type === 'boss', special: !!d.special, fixed: !!d.fixed, elite: false,
     atkCd: 0, hitT: 0, burnT: 0, bs: [], burnTick: 0, chill: 0, chillT: 0, frozen: 0, stun: 0,
@@ -21,7 +21,7 @@ function updSpawner(dt) {
   if (S.wave > 20 && S.otT > 20) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - 20) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
   if (S.toSpawn <= 0) return;
   S.spawnT -= dt * (S.ot || 1);
-  if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 150 : 110)) return;
+  if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 220 : 110)) return;
   S.spawnT = Math.max(S.wave > 20 ? .07 : .12, 1.05 - S.wave * .045);
   const a = Math.random() * TAU, type = pickW(enemyPool(S.wave));
   const grp = Math.min(S.toSpawn, type === 'swarm' ? irnd(4, 6) : irnd(1, 2 + Math.floor(S.wave / 5)));
@@ -58,7 +58,7 @@ function updEnemies(dt) {
     const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx, dy) || 1;
     let vx = dx / d, vy = dy / d;
     let sm = (e.chill > 0 ? 1 - slow : 1) * ((ff || syn('frostfire2') >= 0) && e.burnT > 0 ? .7 : 1);
-    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1) * (S.ot || 1);
+    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1) * (S.ot || 1) * endlessSpd();
     if (e.fixed) {   // altars and eggs never move
       sp = 0; e.kx = e.ky = 0; if (e.ax === undefined) { e.ax = e.x; e.ay = e.y; } e.x = e.ax; e.y = e.ay;
       if (e.type === 'egg' && (e.hatchT -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '#d9c7a0', 12, 120, .4); sfx('pop'); for (let i = 0; i < 5; i++) spawnEnemy('swarm', e.x + rnd(-14, 14), e.y + rnd(-14, 14)); spawnEnemy('runner', e.x, e.y); continue; }

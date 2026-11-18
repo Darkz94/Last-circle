@@ -1,1 +1,1 @@
-{ "version": 33, "notes": "From wave 30 enemies pile up at most ~10 deep, and enemies that reach you attack faster." }
+{ "version": 34, "notes": "Endless reworked: enemy health +5%/wave, armor capped at 80% block, up to 220 faster enemies on screen. Penetration removes at most half of enemy armor. Smoother drawing in big crowds." }

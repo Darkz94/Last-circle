@@ -236,11 +236,12 @@ function eyes(c, r, ang, n, col) {
 }
 function drawEnemy(c, e, T) {
   const r = e.r, hit = e.hitT > 0, fr = e.frozen > 0 || e.thr;
-  const base = hit ? '#ffffff' : fr ? '#a9dcf5' : e.col, dark = hit ? '#e8e8e8' : fr ? '#5a9cc0' : shade(e.col, .5), lite = fr ? '#e2f6ff' : shade(e.col, 1.4);
+  if (e.dkC !== e.col) { e.dkC = e.col; e.dk = shade(e.col, .5); e.lt = shade(e.col, 1.4); }   // colour shades cached per enemy
+  const base = hit ? '#ffffff' : fr ? '#a9dcf5' : e.col, dark = hit ? '#e8e8e8' : fr ? '#5a9cc0' : e.dk, lite = fr ? '#e2f6ff' : e.lt;
   const eye = hit ? '#ffffff' : fr ? '#1a3a4a' : e.mode === 'wind' ? '#ff4d4d' : '#ffe6f2';
   const ang = Math.atan2(S.p.y - e.y, S.p.x - e.x);
   c.save(); c.translate(e.x, e.y);
-  c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, r * .78, r * .95, r * .36, 0, 0, TAU); c.fill();
+  if (S.enemies.length < 160) { c.fillStyle = 'rgba(0,0,0,.3)'; c.beginPath(); c.ellipse(0, r * .78, r * .95, r * .36, 0, 0, TAU); c.fill(); }   // skip shadows in huge crowds
   if (e.mode === 'wind') c.translate(rnd(-1.5, 1.5), rnd(-1.5, 1.5));
   const sq = hit ? 1.14 : 1 + Math.sin(e.wob) * .035;
   c.scale(sq, 2 - sq);                       // squash and stretch
