@@ -147,7 +147,7 @@ const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) :
 // and damage % is the only stat that scales it (flat damage, tiers and crit chance on weapons don't).
 const abilityBase = w => 8 + 2.2 * w;
 const BOSS_HP = 800;   // x hpMult(wave)
-function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.05, w - 20); return m; }   // endless: +5% health per wave
+function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.15, w - 20); return m; }   // endless: +15% health per wave
 let ENEMY_DMG = 1.9;   // enemies hit harder to match the armor curve (70% soft cap, 80% hard cap)
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m * ENEMY_DMG; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }

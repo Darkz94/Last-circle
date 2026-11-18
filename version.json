@@ -1,1 +1,1 @@
-{ "version": 39, "notes": "Smoother big fights: gold and XP clump together, and effects simplify automatically when the frame rate drops." }
+{ "version": 40, "notes": "Endless enemy health now grows 15% per wave after wave 20. Smoother big fights: drops clump together and effects simplify when the frame rate drops." }

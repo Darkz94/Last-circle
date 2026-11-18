@@ -177,7 +177,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 39;
+const GAME_VERSION = 40;
 let GFX = 0;   // auto quality: 0 full, 1 reduced, 2 minimal (set by the main loop)
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
@@ -547,7 +547,7 @@ const goldRate = () => GOLD_RATE * (S.wave > 20 ? 2 * (1 + .1 * (S.wave - 21)) :
 // and damage % is the only stat that scales it (flat damage, tiers and crit chance on weapons don't).
 const abilityBase = w => 8 + 2.2 * w;
 const BOSS_HP = 800;   // x hpMult(wave)
-function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.05, w - 20); return m; }   // endless: +5% health per wave
+function hpMult(w) { const k = Math.max(0, Math.min(w, 20) - 6); let m = 1 + (w - 1) * .6 + k * k * .12; if (w > 20) m *= Math.pow(1.15, w - 20); return m; }   // endless: +15% health per wave
 let ENEMY_DMG = 1.9;   // enemies hit harder to match the armor curve (70% soft cap, 80% hard cap)
 function dmgMult(w) { const k = Math.max(0, Math.min(w, 20) - 8); let m = 1 + (w - 1) * .16 + k * k * .025; if (w > 20) m *= Math.pow(1.16, w - 20); return m * ENEMY_DMG; }
 function spdMult(w) { return (1 + Math.min(.4, w * .012)) * (w > 20 ? Math.min(2.4, 1 + (w - 20) * .07) : 1); }
@@ -3198,8 +3198,9 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 39,
-  notes: ['Smoother big fights: nearby gold and XP clump into bigger drops, and effects get simpler automatically when the frame rate drops (explosions become plain rings, fewer particles)',
+  v: 40,
+  notes: ['Endless is harder: enemy health now grows 15% per wave after wave 20 (was 5%)',
+    'Smoother big fights: nearby gold and XP clump into bigger drops, and effects get simpler automatically when the frame rate drops (explosions become plain rings, fewer particles)',
     'Cooldown reduction: no more 1s limit per ability. It keeps being offered until your slowest timed ability is at 1s (and comes back if you pick up a slower one)',
     'Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
