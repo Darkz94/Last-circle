@@ -79,7 +79,7 @@ const EPASS = {
     { k: 'ign',     v: 8,   base: 14,  cap: 100, u: '%', t: 'ignite chance on Fire hits' },
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
     { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
-    { k: 'burn',    v: 20,  base: 100, cap: 400, u: '%', t: 'burn damage' },
+    { k: 'burn',    v: 20,  base: 140, cap: 440, u: '%', t: 'burn damage' },
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },

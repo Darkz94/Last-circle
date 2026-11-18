@@ -113,7 +113,7 @@ F.cycle.hit = (a, s, w, e, d) => {
     chill(e, 2);
     if (S.time < (e.novaCd || 0)) return;
     e.novaCd = S.time + 2;
-    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, src: 'explosion' });
+    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, fire: true, src: 'explosion' });
     if (!e.dead && !e.boss && Math.random() < .5) freeze(e);
     shuffle(S.enemies.filter(o => !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140)).slice(0, 3).forEach(o => bolt(o, .8, { noChain: true, full: true }));
   }

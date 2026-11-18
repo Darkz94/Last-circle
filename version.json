@@ -1,1 +1,1 @@
-{ "version": 31, "notes": "Swords are now Balanced: +15% damage and 20% stronger stats." }
+{ "version": 32, "notes": "Fire explosions leave a burn stack on each enemy hit; base burn damage +40%; burn stack pips on enemies; Overheat works again." }

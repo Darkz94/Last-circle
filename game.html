@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 31;
+const GAME_VERSION = 32;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -477,7 +477,7 @@ const EPASS = {
     { k: 'ign',     v: 8,   base: 14,  cap: 100, u: '%', t: 'ignite chance on Fire hits' },
     { k: 'spread',  v: 8,   base: 5,   cap: 100, u: '%', t: 'chance burning enemies spread fire on touch' },
     { k: 'vsBurn',  v: 10,  base: 0,   cap: 100, u: '%', t: 'damage to burning enemies' },
-    { k: 'burn',    v: 20,  base: 100, cap: 400, u: '%', t: 'burn damage' },
+    { k: 'burn',    v: 20,  base: 140, cap: 440, u: '%', t: 'burn damage' },
     { k: 'bstack',  v: 1,   base: 3,   cap: 10,  u: '',  t: 'max burn stacks per enemy' },
     { k: 'auraSpd', v: 20,  base: 0,   cap: 100, u: '%', t: 'Inferno Aura pulse speed', req: ['inferno'] },
     { k: 'burnSpd', v: 15,  base: 100, cap: 300, u: '%', t: 'burn speed (same damage, delivered faster)' },
@@ -1030,7 +1030,7 @@ F.cycle.hit = (a, s, w, e, d) => {
     chill(e, 2);
     if (S.time < (e.novaCd || 0)) return;
     e.novaCd = S.time + 2;
-    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, src: 'explosion' });
+    boom(e.x, e.y, 80, S.ab * 1.6, '#ffffff', { chill: 1, fire: true, src: 'explosion' });
     if (!e.dead && !e.boss && Math.random() < .5) freeze(e);
     shuffle(S.enemies.filter(o => !o.dead && Math.hypot(o.x - e.x, o.y - e.y) < 140)).slice(0, 3).forEach(o => bolt(o, .8, { noChain: true, full: true }));
   }
@@ -1422,10 +1422,11 @@ function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
   o = o || NO;
+  const fire = o.fire || col === FIRE;   // fire explosions (not Combustion's detonation) leave one burn stack on each enemy hit
   FX({ k: 'boom', x, y, r: rad, life: .35, col });
   if (!o.small) { S.shake = Math.min(5, S.shake + 1.2); puff(x, y, col, 8, rad * 2.2, .4); if (rad > 80) hitstop(.035); }
   if (!o.quiet) sfx('boom', o.small ? .5 : 1);
-  if (o.ignite && syn('overheat') >= 0 && S.time - (S.ohT || -9) > .15) {
+  if (fire && syn('overheat') >= 0 && S.time - (S.ohT || -9) > .15) {
     // Overheat: fire explosions throw lightning
     S.ohT = S.time;
     const near = S.enemies.filter(e => !e.dead && Math.hypot(e.x - x, e.y - y) < 170);
@@ -1433,6 +1434,7 @@ function boom(x, y, rad, amt, col, o) {
   }
   eachNear(x, y, rad, e => {
     const dd = dmg(e, amt, { col, pierce: o.pierce, src: o.src || 'explosion' });
+    if (fire && !e.dead && dd > 0) burn(e, burnFrom(dd));
     if (o.chill) chill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
     if (o.stun) stun(e, o.stun);
@@ -2860,7 +2862,12 @@ function drawEnemy(c, e, T) {
   if (e.type === 'altar') { c.strokeStyle = 'rgba(200,100,255,.3)'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, r + 14 + Math.sin(T * 3) * 4, 0, TAU); c.stroke(); }
   if (e.type === 'goblin') { c.fillStyle = '#ffe9a8'; c.font = '700 11px "Chakra Petch"'; c.textAlign = 'center'; c.fillText(Math.max(0, e.escT).toFixed(0), 0, -r - 10); }
   if (e.elite) { c.strokeStyle = `rgba(242,193,78,${.65 + Math.sin(T * 6) * .3})`; c.lineWidth = 2.5; c.beginPath(); c.arc(0, 0, r + 5, 0, TAU); c.stroke(); c.fillStyle = '#f2c14e'; c.beginPath(); c.moveTo(-6, -r - 7); c.lineTo(-6, -r - 14); c.lineTo(-3, -r - 10); c.lineTo(0, -r - 15); c.lineTo(3, -r - 10); c.lineTo(6, -r - 14); c.lineTo(6, -r - 7); c.closePath(); c.fill(); }
-  if (e.burnT > 0) { c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 1.5 + Math.min(4, (e.bs ? e.bs.length : 1) * .5); c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke(); }
+  if (e.burnT > 0) {
+    c.strokeStyle = 'rgba(255,130,40,.9)'; c.lineWidth = 1.5; c.beginPath(); c.arc(0, 0, r + 3, 0, TAU); c.stroke();
+    // one flame pip per burn stack, in an arc above the enemy (gold once it's at max stacks)
+    const n = e.bs ? e.bs.reduce((k, s) => k + (s.aura ? 0 : 1), 0) : 0, mx = E('red', 'bstack');
+    if (n > 0) { c.fillStyle = n >= mx ? '#ffd23f' : '#ff7a2a'; const span = Math.min(Math.PI * .9, n * .32); for (let i = 0; i < n; i++) { const t = -Math.PI / 2 - span / 2 + (n > 1 ? span * i / (n - 1) : span / 2); c.beginPath(); c.arc(Math.cos(t) * (r + 8), Math.sin(t) * (r + 8), 2, 0, TAU); c.fill(); } }
+  }
   if (e.chill > 0 && e.frozen <= 0) { c.strokeStyle = 'rgba(120,210,255,.95)'; c.lineWidth = 2; c.setLineDash([3, 3]); c.beginPath(); c.arc(0, 0, r + 6, -Math.PI / 2, -Math.PI / 2 + TAU * Math.min(1, e.chill / 4)); c.stroke(); c.setLineDash([]); }
   if (e.frozen > 0) { c.fillStyle = 'rgba(200,238,255,.3)'; c.strokeStyle = '#eefaff'; c.lineWidth = 1.5; c.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * TAU + .5; c.lineTo(Math.cos(a) * (r + 6), Math.sin(a) * (r + 6)); } c.closePath(); c.fill(); c.stroke(); }
   if (e.stun > 0) { c.fillStyle = '#ffd23f'; for (let i = 0; i < 3; i++) { const a = T * 6 + i * TAU / 3; c.fillRect(Math.cos(a) * r * .9 - 1.5, -r - 7 + Math.sin(a) * 3, 3, 3); } }
@@ -3119,7 +3126,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 31,
+  v: 32,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3141,6 +3148,8 @@ const PATCH = {
     'From wave 30 enemies stack on each other, so the whole crowd can hit you',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
+    'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
+    'Burning enemies show a pip for each burn stack (gold at max stacks)',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],

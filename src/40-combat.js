@@ -98,10 +98,11 @@ function eachNear(x, y, r, fn) { r *= areaM(); grid.near(x, y, r + 64, e => { if
 function boom(x, y, rad, amt, col, o) {
   rad *= areaM();
   o = o || NO;
+  const fire = o.fire || col === FIRE;   // fire explosions (not Combustion's detonation) leave one burn stack on each enemy hit
   FX({ k: 'boom', x, y, r: rad, life: .35, col });
   if (!o.small) { S.shake = Math.min(5, S.shake + 1.2); puff(x, y, col, 8, rad * 2.2, .4); if (rad > 80) hitstop(.035); }
   if (!o.quiet) sfx('boom', o.small ? .5 : 1);
-  if (o.ignite && syn('overheat') >= 0 && S.time - (S.ohT || -9) > .15) {
+  if (fire && syn('overheat') >= 0 && S.time - (S.ohT || -9) > .15) {
     // Overheat: fire explosions throw lightning
     S.ohT = S.time;
     const near = S.enemies.filter(e => !e.dead && Math.hypot(e.x - x, e.y - y) < 170);
@@ -109,6 +110,7 @@ function boom(x, y, rad, amt, col, o) {
   }
   eachNear(x, y, rad, e => {
     const dd = dmg(e, amt, { col, pierce: o.pierce, src: o.src || 'explosion' });
+    if (fire && !e.dead && dd > 0) burn(e, burnFrom(dd));
     if (o.chill) chill(e, o.chill);
     if (o.freezeCh && Math.random() * 100 < o.freezeCh) freeze(e);
     if (o.stun) stun(e, o.stun);

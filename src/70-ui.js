@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 31,
+  v: 32,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -130,6 +130,8 @@ const PATCH = {
     'From wave 30 enemies stack on each other, so the whole crowd can hit you',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
+    'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
+    'Burning enemies show a pip for each burn stack (gold at max stacks)',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
