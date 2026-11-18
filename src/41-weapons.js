@@ -42,7 +42,7 @@ function strike(w, e, dir) {
   let d = weaponDmg(w);
   const ty = w.type, spreadM = ty === 'axe' ? 1.5 : 1;   // Status spreader: axes apply their element 50% more often
   if (ty === 'spear' && Math.hypot(e.x - S.p.x, e.y - S.p.y) - e.r > TYPES.spear.range * tot.rangeM * .55) d *= 1.25;   // Reach
-  if (ty === 'sword') d *= 1 + .05 * TYPE_KEYS.filter(k => S.tcounts[k]).length;   // Versatile
+  if (ty === 'sword') d *= 1.15;   // Balanced
   const ti = sv('titan'); if (ti) d += tot.maxHp * ti / 100;
   if (w.evo && w.el === 'green') d += tot.maxHp * .03;
   S.hitN++;

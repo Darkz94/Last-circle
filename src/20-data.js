@@ -4,7 +4,7 @@
 const TYPES = {
   dagger: { n: 'Dagger', cd: .34, range: 54,  dmg: 5,  kind: 'stab', how: 'quick stab', role: 'On-hit trigger', trait: 'Bleed: every 5th stab on the same enemy deals 30% of the last 5 stabs again',
             fav: ['atkSpd', 'crit', 'critDmg', 'leech', 'speed'] },
-  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Versatile: +5% damage for each different weapon type you own', fav: [] },
+  sword:  { n: 'Sword',  cd: .8,  range: 70,  dmg: 9,  kind: 'arc', arc: 110, how: 'slash', role: 'All-rounder', trait: 'Balanced: +15% damage, and its own stats roll 20% stronger', fav: [] },
   axe:    { n: 'Axe',    cd: 1.2, range: 74,  dmg: 14, kind: 'arc', arc: 220, how: 'wide cleave', role: 'Status spreader', trait: 'Status spreader: +50% chance to apply its element', fav: ['dmgPct', 'flat', 'critDmg', 'leech'] },
   spear:  { n: 'Spear',  cd: 1.0, range: 118, dmg: 10, kind: 'line', how: 'long thrust', role: 'Reach', trait: 'Reach: +25% damage to enemies near the tip', fav: ['range', 'pen', 'flat', 'stun'] },
   shield: { n: 'Shield', cd: 1.0, range: 52,  dmg: 6,  kind: 'arc', arc: 150, knock: true, how: 'bash + knockback', role: 'Defensive guard', trait: 'Guard: +2 armor and always knocks back',
@@ -41,7 +41,7 @@ const STAT = {
 const STAT_KEYS = Object.keys(STAT);
 const AFX_SCALE = [1, 1.5, 2.2, 3.6];
 const statText = (k, v) => `+${fmt(v)}${STAT[k].u} ${STAT[k].t}`;
-function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : w.fused ? 1.15 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
+function afxVal(k, w) { const v = STAT[k].afx * AFX_SCALE[w.tier] * (w.evo ? 1.25 : w.fused ? 1.15 : 1) * (w.type === 'sword' ? 1.2 : 1); return STAT[k].afx < 1 ? Math.round(v * 10) / 10 : Math.round(v); }
 
 // ---- level-up bonus stats
 const AREA_CAP = 150;   // ability area tops out at +150% (15 picks)
