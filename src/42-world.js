@@ -28,6 +28,8 @@ function updSpawner(dt) {
   for (let i = 0; i < grp; i++) { const aa = a + rnd(-.18, .18), rr = SPAWN_R + rnd(0, 30); spawnEnemy(type, Math.cos(aa) * rr, Math.sin(aa) * rr); }
   S.toSpawn -= grp;
 }
+// enemies that reach you swing every 0.9s; from wave 30 faster (0.55s, then a little quicker each wave, down to 0.35s)
+const enemyAtkCd = () => S.wave < 30 ? .9 : Math.max(.35, .55 - (S.wave - 30) * .01);
 function updEnemies(dt) {
   const p = S.p, slow = E('blue', 'slow') / 100, ff = rel('frostfire');
   const altarOn = S.enemies.some(e => e.type === 'altar' && !e.dead);
@@ -89,13 +91,14 @@ function updEnemies(dt) {
       const bx = e.x - b.x, by = e.y - b.y, bd = Math.hypot(bx, by) || 1, mn = e.r + b.r;
       if (bd < mn) { e.x = b.x + bx / bd * mn; e.y = b.y + by / bd * mn; }
     }
-    if (tgt !== p) { if (!held && !(e.confT > 0) && e.dmg > 0 && d < e.r + tgt.r && e.atkCd <= 0) { e.atkCd = .9; tgt.hp -= e.dmg * playerArm(tot.armor); } }
-    else if (!held && !(e.confT > 0) && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = .9; thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
+    if (tgt !== p) { if (!held && !(e.confT > 0) && e.dmg > 0 && d < e.r + tgt.r && e.atkCd <= 0) { e.atkCd = enemyAtkCd(); tgt.hp -= e.dmg * playerArm(tot.armor); } }
+    else if (!held && !(e.confT > 0) && !(e.reviveT > 0) && e.dmg > 0 && d < e.r + PR && e.atkCd <= 0) { e.atkCd = enemyAtkCd(); thorns(e); hurt(e.dmg, e); if (S.phase !== 'fight') return; }
   }
   // keep enemies from stacking, and let fire jump between touching enemies
   S.spreadT -= dt;
   const doSpread = S.spreadT <= 0, spreadCh = E('red', 'spread');
   if (doSpread) S.spreadT = .3;
+  for (const a of S.enemies) a.ov = 0;
   for (const a of S.enemies) {
     if (a.dead) continue;
     grid.near(a.x, a.y, a.r + 70, b => {
@@ -104,7 +107,10 @@ function updEnemies(dt) {
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
       if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, Math.max(0, ...(src.bs || []).map(x => x.left))); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
-      if (d > 0 && d < min && (S.wave < 30 || a.fixed || b.fixed || a.boss || b.boss)) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
+      // from wave 30 enemies may pile up, but only about 10 deep
+      const stackOk = S.wave >= 30 && !a.fixed && !b.fixed && !a.boss && !b.boss && a.ov < 9 && b.ov < 9;
+      if (d > 0 && d < min && stackOk) { a.ov++; b.ov++; }
+      if (d > 0 && d < min && !stackOk) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
   // telegraphed enemy attacks

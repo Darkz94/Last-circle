@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 32,
+  v: 33,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -127,7 +127,7 @@ const PATCH = {
     "Earth's defensive level-ups, Ironbark and Earth weapon HP trimmed; base max HP and armor picks +20%",
     'Combo level-ups now come every 5th level instead of every 3rd; you can keep only one card at a time',
     'Endless Overtime: from wave 21, a wave still going after 20s speeds its enemies up every 10s',
-    'From wave 30 enemies stack on each other, so the whole crowd can hit you',
+    'From wave 30 enemies can pile up to about 10 deep, and enemies that reach you attack faster (0.55s, down to 0.35s)',
     'Stoneheart also lifts your armor cap to 85%',
     'Swords are now Balanced: +15% damage and 20% stronger stats (replaces Versatile)',
     'Fire explosions leave one burn stack on every enemy they hit (not Combustion); base burn damage +40%',
