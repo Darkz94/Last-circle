@@ -77,6 +77,7 @@ function draw() {
   const aura = sv('inferno') ? sv('inferno', 'r') * (tot.areaM || 1) : 0; if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
   for (const ev of S.evs) drawEvent(c, ev, T);
   drawBossWorld(c, T);
+  if ((S.ot || 1) > 1) { c.fillStyle = `rgba(255,40,40,${Math.min(.12, (S.ot - 1) * .06)})`; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); }   // Overtime
   drawSynWorld(c, T);
   for (const t of S.tele) {
     const k = t.t / t.life;

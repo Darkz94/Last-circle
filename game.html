@@ -176,7 +176,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 29;
+const GAME_VERSION = 30;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -554,7 +554,8 @@ const ARM_K = 50;
 const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1;   // enemies: damage multiplier left after armor (blocks at most 80%)
 // you: armor climbs quickly to a 70% soft cap (30 armor), then slowly to an 80% hard cap (100 armor)
 const ARM_SOFT = 30, ARM_HARD = 100;
-const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .8) : Math.min(.8, .7 + .1 * (a - ARM_SOFT) / (ARM_HARD - ARM_SOFT));
+const armCap = () => S && sv('over') ? .85 : .8;   // Stoneheart lifts the hard cap
+const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .8) : Math.min(armCap(), .7 + .1 * (a - ARM_SOFT) / (ARM_HARD - ARM_SOFT));
 const playerArm = a => 1 - armBlock(a);
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 12 : 0)); }
@@ -685,7 +686,7 @@ const ABIL = {
   green: defs('green', [
     { id: 'bark', name: 'Ironbark', v: [2, 3, 5], d: (a, s) => `Every wave you clear gives +${a.v[s]}% max HP for the rest of the run, with no limit`,
       stats(a, s, t) { t.hpMul *= 1 + (S.grow.hp || 0) * a.v[s] / 100; } },
-    { id: 'over', name: 'Stoneheart', v: [1, 2, 3], d: (a, s) => `Every wave you clear gives +${a.v[s]} armor for the rest of the run, with no limit`,
+    { id: 'over', name: 'Stoneheart', v: [1, 2, 3], d: (a, s) => `Every wave you clear gives +${a.v[s]} armor for the rest of the run, with no limit, and your armor can block up to 85% (instead of 80%)`,
       stats(a, s, t) { t.armor += (S.grow.arm || 0) * a.v[s]; } },
     { id: 'brood', name: 'Thornblades', v: [45, 65, 80], d: (a, s) => `Earth weapons take ${a.v[s]}% of your thorn stats (instead of 25%): flat thorns as flat damage, plus thorn crit chance, crit damage and penetration` },
     { id: 'thorn', name: 'Bloodstone', v: [3, 5, 8], d: (a, s) => `Gain thorn damage equal to ${a.v[s]}% of your max HP`,
@@ -1778,8 +1779,11 @@ function spawnEnemy(type, x, y) {
 }
 function updSpawner(dt) {
   if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; S.lastBossKey = bossKeyFor(S.wave); spawnBoss(S.lastBossKey); S.shake = 6; } }
+  // Overtime: from wave 21, a wave still going after 20s speeds its enemies up 15% more every 10s (max 2.5x)
+  S.otT = (S.otT || 0) + dt;
+  if (S.wave > 20 && S.otT > 20) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - 20) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
   if (S.toSpawn <= 0) return;
-  S.spawnT -= dt;
+  S.spawnT -= dt * (S.ot || 1);
   if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 150 : 110)) return;
   S.spawnT = Math.max(S.wave > 20 ? .07 : .12, 1.05 - S.wave * .045);
   const a = Math.random() * TAU, type = pickW(enemyPool(S.wave));
@@ -1792,7 +1796,7 @@ function updEnemies(dt) {
   const altarOn = S.enemies.some(e => e.type === 'altar' && !e.dead);
   for (const e of S.enemies) {
     if (e.dead) continue;
-    e.hitT -= dt; e.atkCd -= dt; e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
+    e.hitT -= dt; e.atkCd -= dt * (S.ot || 1); e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
     if (e.dnAcc > 0 && (e.dnT -= dt) <= 0) flushDn(e);
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
@@ -1815,7 +1819,7 @@ function updEnemies(dt) {
     const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx, dy) || 1;
     let vx = dx / d, vy = dy / d;
     let sm = (e.chill > 0 ? 1 - slow : 1) * ((ff || syn('frostfire2') >= 0) && e.burnT > 0 ? .7 : 1);
-    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1);
+    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1) * (S.ot || 1);
     if (e.fixed) {   // altars and eggs never move
       sp = 0; e.kx = e.ky = 0; if (e.ax === undefined) { e.ax = e.x; e.ay = e.y; } e.x = e.ax; e.y = e.ay;
       if (e.type === 'egg' && (e.hatchT -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '#d9c7a0', 12, 120, .4); sfx('pop'); for (let i = 0; i < 5; i++) spawnEnemy('swarm', e.x + rnd(-14, 14), e.y + rnd(-14, 14)); spawnEnemy('runner', e.x, e.y); continue; }
@@ -1863,7 +1867,7 @@ function updEnemies(dt) {
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
       if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, Math.max(0, ...(src.bs || []).map(x => x.left))); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
-      if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
+      if (d > 0 && d < min && (S.wave < 30 || a.fixed || b.fixed || a.boss || b.boss)) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
   // telegraphed enemy attacks
@@ -2360,7 +2364,7 @@ function startWave() {
   for (const w of S.weapons) { w.sumT = 1; w.cd = rnd(0, .3); }
   const boss = S.wave % 10 === 0;
   S.toSpawn = Math.round(waveCount(S.wave) * (boss ? .55 : 1));
-  S.spawnT = 1.2; S.bossPending = boss; S.bossT = 2.5;
+  S.spawnT = 1.2; S.bossPending = boss; S.bossT = 2.5; S.otT = 0; S.ot = 1;
   scheduleEvents();
   banner(boss ? `Wave ${S.wave} — ${bossFor(S.wave).name}` : S.wave === 21 ? 'Wave 21 — beyond the circle' : `Wave ${S.wave}`);
   AU.wave = S.wave;
@@ -2636,6 +2640,7 @@ function draw() {
   const aura = sv('inferno') ? sv('inferno', 'r') * (tot.areaM || 1) : 0; if (aura) { c.strokeStyle = 'rgba(255,110,50,.28)'; c.lineWidth = 2; c.setLineDash([4, 6]); c.lineDashOffset = -T * 14; c.beginPath(); c.arc(p.x, p.y, aura, 0, TAU); c.stroke(); c.setLineDash([]); }
   for (const ev of S.evs) drawEvent(c, ev, T);
   drawBossWorld(c, T);
+  if ((S.ot || 1) > 1) { c.fillStyle = `rgba(255,40,40,${Math.min(.12, (S.ot - 1) * .06)})`; c.beginPath(); c.arc(0, 0, R, 0, TAU); c.fill(); }   // Overtime
   drawSynWorld(c, T);
   for (const t of S.tele) {
     const k = t.t / t.life;
@@ -3084,7 +3089,7 @@ function statsHtml() {
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
     ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
-    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max 80%)`)}${row('Penetration', fmt(tot.pen))}
+    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max ${Math.round(armCap() * 100)}%)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * thornGrow() * (1 + tot.dmgPct / 100))} · crit ${Math.round(tot.thornCrit)}% ×${fmt(Math.round(tot.thornCritM * 100) / 100)} · pen ${Math.round(tot.thornPen)}` : '—')}
   </div>
@@ -3114,7 +3119,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 29,
+  v: 30,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -3132,11 +3137,14 @@ const PATCH = {
     'Earth weapons take 25% of your thorn stats; Thornstrike became Thornblades (45/65/80%)',
     "Earth's defensive level-ups, Ironbark and Earth weapon HP trimmed; base max HP and armor picks +20%",
     'Combo level-ups now come every 5th level instead of every 3rd; you can keep only one card at a time',
+    'Endless Overtime: from wave 21, a wave still going after 20s speeds its enemies up every 10s',
+    'From wave 30 enemies stack on each other, so the whole crowd can hit you',
+    'Stoneheart also lifts your armor cap to 85%',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
   new: ['grace', 'wings', 'prison', 'golems', 'omni'],
-  changed: ['brood', 'bark', 'blast', 'phoenix', 'syn:volcano', 'combust', 'pyre', 'shatter', 'thornskin', 'syn:thermal', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
+  changed: ['over', 'brood', 'bark', 'blast', 'phoenix', 'syn:volcano', 'combust', 'pyre', 'shatter', 'thornskin', 'syn:thermal', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
 };
 const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind !== 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(kind === 'syn' ? 'syn:' + id : id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {

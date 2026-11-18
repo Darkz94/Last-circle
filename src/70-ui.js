@@ -78,7 +78,7 @@ function statsHtml() {
   const relics = S.relics.map(id => `<div class="cx" style="--c:${RELIC[id].col}"><b>${RELIC[id].name}</b><br>${RELIC[id].d}</div>`).join('');
   return `<div class="stats">
     ${row('Max HP', Math.round(tot.maxHp))}${row('Ability power', Math.round(S.ab || 0))}${row('Ability area', `+${Math.round(((tot.areaM || 1) - 1) * 100)}%`)}${row('Damage', '+' + fmt(tot.dmgPct) + '%')}${row('Flat damage', '+' + fmt(tot.flat))}${row('Attack speed', '+' + fmt(tot.atkSpd) + '%')}
-    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max 80%)`)}${row('Penetration', fmt(tot.pen))}
+    ${row('Crit chance', fmt(tot.crit) + '%')}${row('Crit damage', Math.round(tot.critMult * 100) + '%')}${row('Armor', `${fmt(tot.armor)} (−${Math.round(armBlock(tot.armor) * 100)}% damage, max ${Math.round(armCap() * 100)}%)`)}${row('Penetration', fmt(tot.pen))}
     ${row('HP regen', fmt(tot.regen) + '/s')}${row('Life steal', fmt(tot.leech) + '%')}${row('Move speed', '+' + fmt(tot.speed) + '%')}${row('Attack range', '+' + fmt(tot.range) + '%')}
     ${row('Stun chance', fmt(tot.stun) + '%')}${row('Knockback', fmt(tot.knock) + '%')}${row('Pickup range', '+' + fmt(tot.pickup) + '%')}${row('Thorns', tot.thornFlat > 0 ? `${Math.round(tot.thornFlat * thornGrow() * (1 + tot.dmgPct / 100))} · crit ${Math.round(tot.thornCrit)}% ×${fmt(Math.round(tot.thornCritM * 100) / 100)} · pen ${Math.round(tot.thornPen)}` : '—')}
   </div>
@@ -108,7 +108,7 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 29,
+  v: 30,
   notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
@@ -126,11 +126,14 @@ const PATCH = {
     'Earth weapons take 25% of your thorn stats; Thornstrike became Thornblades (45/65/80%)',
     "Earth's defensive level-ups, Ironbark and Earth weapon HP trimmed; base max HP and armor picks +20%",
     'Combo level-ups now come every 5th level instead of every 3rd; you can keep only one card at a time',
+    'Endless Overtime: from wave 21, a wave still going after 20s speeds its enemies up every 10s',
+    'From wave 30 enemies stack on each other, so the whole crowd can hit you',
+    'Stoneheart also lifts your armor cap to 85%',
     'Earth: weapons give thorns and HP instead of golems; 8 abilities turn HP, armor and thorns into damage; Thornstrike puts thorns on every hit',
     'Golems now come from Stone Golems, Colossus and the golem synergies',
     'Your armor: 70% damage reduction at 30 armor, up to 80% at 100'],
   new: ['grace', 'wings', 'prison', 'golems', 'omni'],
-  changed: ['brood', 'bark', 'blast', 'phoenix', 'syn:volcano', 'combust', 'pyre', 'shatter', 'thornskin', 'syn:thermal', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
+  changed: ['over', 'brood', 'bark', 'blast', 'phoenix', 'syn:volcano', 'combust', 'pyre', 'shatter', 'thornskin', 'syn:thermal', 'bark', 'over', 'brood', 'thorn', 'ancient', 'leech', 'vines', 'pollen', 'syn:magma', 'syn:magnetite', 'syn:permafrost', 'syn:glacier', 'syn:livingstorm'],
 };
 const patchTag = (id, kind) => CHANNEL !== 'beta' ? '' : kind !== 'syn' && PATCH.new.includes(id) ? ' <span class="ptag new">NEW</span>' : PATCH.changed.includes(kind === 'syn' ? 'syn:' + id : id) ? ' <span class="ptag chg">CHANGED</span>' : '';
 function codexHtml() {

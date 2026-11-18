@@ -116,7 +116,7 @@ const ABIL = {
   green: defs('green', [
     { id: 'bark', name: 'Ironbark', v: [2, 3, 5], d: (a, s) => `Every wave you clear gives +${a.v[s]}% max HP for the rest of the run, with no limit`,
       stats(a, s, t) { t.hpMul *= 1 + (S.grow.hp || 0) * a.v[s] / 100; } },
-    { id: 'over', name: 'Stoneheart', v: [1, 2, 3], d: (a, s) => `Every wave you clear gives +${a.v[s]} armor for the rest of the run, with no limit`,
+    { id: 'over', name: 'Stoneheart', v: [1, 2, 3], d: (a, s) => `Every wave you clear gives +${a.v[s]} armor for the rest of the run, with no limit, and your armor can block up to 85% (instead of 80%)`,
       stats(a, s, t) { t.armor += (S.grow.arm || 0) * a.v[s]; } },
     { id: 'brood', name: 'Thornblades', v: [45, 65, 80], d: (a, s) => `Earth weapons take ${a.v[s]}% of your thorn stats (instead of 25%): flat thorns as flat damage, plus thorn crit chance, crit damage and penetration` },
     { id: 'thorn', name: 'Bloodstone', v: [3, 5, 8], d: (a, s) => `Gain thorn damage equal to ${a.v[s]}% of your max HP`,

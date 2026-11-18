@@ -15,7 +15,7 @@ function startWave() {
   for (const w of S.weapons) { w.sumT = 1; w.cd = rnd(0, .3); }
   const boss = S.wave % 10 === 0;
   S.toSpawn = Math.round(waveCount(S.wave) * (boss ? .55 : 1));
-  S.spawnT = 1.2; S.bossPending = boss; S.bossT = 2.5;
+  S.spawnT = 1.2; S.bossPending = boss; S.bossT = 2.5; S.otT = 0; S.ot = 1;
   scheduleEvents();
   banner(boss ? `Wave ${S.wave} — ${bossFor(S.wave).name}` : S.wave === 21 ? 'Wave 21 — beyond the circle' : `Wave ${S.wave}`);
   AU.wave = S.wave;

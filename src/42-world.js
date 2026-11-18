@@ -16,8 +16,11 @@ function spawnEnemy(type, x, y) {
 }
 function updSpawner(dt) {
   if (S.bossPending) { S.bossT -= dt; if (S.bossT <= 0) { S.bossPending = false; S.lastBossKey = bossKeyFor(S.wave); spawnBoss(S.lastBossKey); S.shake = 6; } }
+  // Overtime: from wave 21, a wave still going after 20s speeds its enemies up 15% more every 10s (max 2.5x)
+  S.otT = (S.otT || 0) + dt;
+  if (S.wave > 20 && S.otT > 20) { const ot = Math.min(2.5, 1 + .15 * (Math.floor((S.otT - 20) / 10) + 1)); if (ot > (S.ot || 1)) { if ((S.ot || 1) === 1) banner('Overtime!', true); S.ot = ot; } }
   if (S.toSpawn <= 0) return;
-  S.spawnT -= dt;
+  S.spawnT -= dt * (S.ot || 1);
   if (S.spawnT > 0 || S.enemies.length >= (S.wave > 20 ? 150 : 110)) return;
   S.spawnT = Math.max(S.wave > 20 ? .07 : .12, 1.05 - S.wave * .045);
   const a = Math.random() * TAU, type = pickW(enemyPool(S.wave));
@@ -30,7 +33,7 @@ function updEnemies(dt) {
   const altarOn = S.enemies.some(e => e.type === 'altar' && !e.dead);
   for (const e of S.enemies) {
     if (e.dead) continue;
-    e.hitT -= dt; e.atkCd -= dt; e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
+    e.hitT -= dt; e.atkCd -= dt * (S.ot || 1); e.stun -= dt; e.frozen -= dt; e.wob += dt * 6;
     if (e.dnAcc > 0 && (e.dnT -= dt) <= 0) flushDn(e);
     if (e.chillT > 0) { e.chillT -= dt; if (e.chillT <= 0) e.chill = 0; }
     if (e.burnT > 0) {
@@ -53,7 +56,7 @@ function updEnemies(dt) {
     const dx = tgt.x - e.x, dy = tgt.y - e.y, d = Math.hypot(dx, dy) || 1;
     let vx = dx / d, vy = dy / d;
     let sm = (e.chill > 0 ? 1 - slow : 1) * ((ff || syn('frostfire2') >= 0) && e.burnT > 0 ? .7 : 1);
-    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1);
+    let sp = held ? 0 : e.spd * sm * (altarOn && !e.special ? 1.35 : 1) * (S.ot || 1);
     if (e.fixed) {   // altars and eggs never move
       sp = 0; e.kx = e.ky = 0; if (e.ax === undefined) { e.ax = e.x; e.ay = e.y; } e.x = e.ax; e.y = e.ay;
       if (e.type === 'egg' && (e.hatchT -= dt) <= 0) { e.dead = true; puff(e.x, e.y, '#d9c7a0', 12, 120, .4); sfx('pop'); for (let i = 0; i < 5; i++) spawnEnemy('swarm', e.x + rnd(-14, 14), e.y + rnd(-14, 14)); spawnEnemy('runner', e.x, e.y); continue; }
@@ -101,7 +104,7 @@ function updEnemies(dt) {
       if (dx > min + 6 || dx < -min - 6 || dy > min + 6 || dy < -min - 6) return;
       const d = Math.hypot(dx, dy);
       if (doSpread && d < min + 6 && (a.burnT > 0) !== (b.burnT > 0) && Math.random() * 100 < spreadCh) { const src = a.burnT > 0 ? a : b, dst = src === a ? b : a; burn(dst, Math.max(0, ...(src.bs || []).map(x => x.left))); puff(dst.x, dst.y, '#ffb347', 2, 60, .3); }
-      if (d > 0 && d < min) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
+      if (d > 0 && d < min && (S.wave < 30 || a.fixed || b.fixed || a.boss || b.boss)) { const k = (min - d) / d * .25, wa = a.fixed ? 0 : a.boss ? .05 : 1, wb = b.fixed ? 0 : b.boss ? .05 : 1; a.x -= dx * k * wa; a.y -= dy * k * wa; b.x += dx * k * wb; b.y += dy * k * wb; }
     });
   }
   // telegraphed enemy attacks

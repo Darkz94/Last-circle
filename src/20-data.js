@@ -156,7 +156,8 @@ const ARM_K = 50;
 const armRed = a => a > 0 ? Math.max(.2, ARM_K / (ARM_K + a)) : 1;   // enemies: damage multiplier left after armor (blocks at most 80%)
 // you: armor climbs quickly to a 70% soft cap (30 armor), then slowly to an 80% hard cap (100 armor)
 const ARM_SOFT = 30, ARM_HARD = 100;
-const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .8) : Math.min(.8, .7 + .1 * (a - ARM_SOFT) / (ARM_HARD - ARM_SOFT));
+const armCap = () => S && sv('over') ? .85 : .8;   // Stoneheart lifts the hard cap
+const armBlock = a => a <= 0 ? 0 : a <= ARM_SOFT ? .7 * Math.pow(a / ARM_SOFT, .8) : Math.min(armCap(), .7 + .1 * (a - ARM_SOFT) / (ARM_HARD - ARM_SOFT));
 const playerArm = a => 1 - armBlock(a);
 function armorAt(w) { let a = Math.floor(Math.max(0, w - 4) * .45); if (w > 20) { const n = w - 20; a += Math.floor(1.5 * n + .18 * n * n); } return a; }
 function waveCount(w) { return Math.round(14 + w * 6 + (w > 20 ? (w - 20) * 12 : 0)); }
