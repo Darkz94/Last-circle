@@ -108,8 +108,9 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 37,
-  notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
+  v: 38,
+  notes: ['Cooldown reduction: no more 1s limit per ability. It keeps being offered until your slowest timed ability is at 1s (and comes back if you pick up a slower one)',
+    'Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
     'Ice: Ice Prison traps crowds with a ring of ice',

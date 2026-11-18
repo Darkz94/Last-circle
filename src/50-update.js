@@ -44,10 +44,12 @@ function updPlayer(dt) {
   if (S.surge.t > 0) { S.surge.t -= dt; if (S.surge.t <= 0) S.surge.n = 0; }
 }
 // a timed ability's cooldown after cooldown reduction; anything slower than 1s can't be pushed below 1s
-const CDR_MIN = 1;
-function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_MIN, base * (1 - Math.min(90, S.st.cdr || 0) / 100)); }
-// cooldown reduction is only offered while at least one timed ability could still get faster
-const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
+const CDR_MIN = 1, CDR_FLOOR = .2;   // cdr is offered until your slowest timed ability reaches 1s; nothing ever fires faster than every 0.2s
+const cdBase = h => h.a.cd || h.a.v[h.s];
+function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_FLOOR, base * (1 - (S.st.cdr || 0) / 100)); }
+// the most cdr that still matters: enough to bring the slowest timed ability down to 1s
+const cdrMax = () => { const b = Math.max(0, ...(S.hk.fire || []).map(cdBase)); return b > CDR_MIN ? (1 - CDR_MIN / b) * 100 : 0; };
+const cdrUseful = () => (S.st.cdr || 0) < cdrMax() - 1e-6;
 function updMods(dt) {
   dt *= S.ot || 1;   // Overtime: timed abilities speed up with everything else
   S.beam = null;
@@ -183,6 +185,7 @@ function choosePerk(i) {
   if (!c) return;
   sfx('click');
   S.st[c.pr.k] += c.pv;
+  if (c.pr.k === 'cdr') S.st.cdr = Math.min(S.st.cdr, Math.max(cdrMax(), S.st.cdr - c.pv));   // last pick only tops up to 1s
   for (const x of c.combo || (c.el ? [c.el] : [])) S.ep[x.c][x.d.k] = (S.ep[x.c][x.d.k] || 0) + x.d.v;
   S.lockedCards = S.perkOffer.filter((x, j) => j !== i && x.locked).map(x => ({ ...x, locked: false }));
   S.perkOffer = null;

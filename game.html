@@ -177,7 +177,7 @@ h3 span{text-transform:none;letter-spacing:.02em}
 (() => {
 "use strict";
 // ===== core: constants and small helpers
-const GAME_VERSION = 37;
+const GAME_VERSION = 38;
 const TAU = Math.PI * 2, R = 300, SPAWN_R = R + 85, PR = 13, STEP = 1 / 60;
 const ORDER = ['red', 'yellow', 'blue', 'green'];
 const COL = { red: '#ff5a3c', yellow: '#ffd23f', blue: '#4fc3ff', green: '#5ee08a', steel: '#c9cbd6', gold: '#f2c14e', xp: '#9b8cff' };
@@ -458,7 +458,7 @@ const PRIM = [
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
   { k: 'area',    v: 10,  t: v => `+${v}% ability area (max +${AREA_CAP}%)` },
-  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (never below 1s)` },
+  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (offered until your slowest is at 1s)` },
 ];
 
 // ---- tuning numbers
@@ -2437,10 +2437,12 @@ function updPlayer(dt) {
   if (S.surge.t > 0) { S.surge.t -= dt; if (S.surge.t <= 0) S.surge.n = 0; }
 }
 // a timed ability's cooldown after cooldown reduction; anything slower than 1s can't be pushed below 1s
-const CDR_MIN = 1;
-function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_MIN, base * (1 - Math.min(90, S.st.cdr || 0) / 100)); }
-// cooldown reduction is only offered while at least one timed ability could still get faster
-const cdrUseful = () => (S.hk.fire || []).some(h => { const b = h.a.cd || h.a.v[h.s]; return b > CDR_MIN && abilityCd(h.a, h.s) > CDR_MIN + 1e-6; });
+const CDR_MIN = 1, CDR_FLOOR = .2;   // cdr is offered until your slowest timed ability reaches 1s; nothing ever fires faster than every 0.2s
+const cdBase = h => h.a.cd || h.a.v[h.s];
+function abilityCd(a, s) { const base = a.cd || a.v[s]; return base <= CDR_MIN ? base : Math.max(CDR_FLOOR, base * (1 - (S.st.cdr || 0) / 100)); }
+// the most cdr that still matters: enough to bring the slowest timed ability down to 1s
+const cdrMax = () => { const b = Math.max(0, ...(S.hk.fire || []).map(cdBase)); return b > CDR_MIN ? (1 - CDR_MIN / b) * 100 : 0; };
+const cdrUseful = () => (S.st.cdr || 0) < cdrMax() - 1e-6;
 function updMods(dt) {
   dt *= S.ot || 1;   // Overtime: timed abilities speed up with everything else
   S.beam = null;
@@ -2576,6 +2578,7 @@ function choosePerk(i) {
   if (!c) return;
   sfx('click');
   S.st[c.pr.k] += c.pv;
+  if (c.pr.k === 'cdr') S.st.cdr = Math.min(S.st.cdr, Math.max(cdrMax(), S.st.cdr - c.pv));   // last pick only tops up to 1s
   for (const x of c.combo || (c.el ? [c.el] : [])) S.ep[x.c][x.d.k] = (S.ep[x.c][x.d.k] || 0) + x.d.v;
   S.lockedCards = S.perkOffer.filter((x, j) => j !== i && x.locked).map(x => ({ ...x, locked: false }));
   S.perkOffer = null;
@@ -3177,8 +3180,9 @@ function renderStart() {
 }
 // what the latest update added or changed: tagged in the beta's Codex so it's easy to find and test
 const PATCH = {
-  v: 37,
-  notes: ['Each element now has a clear identity (shown in the Elements tab and here)',
+  v: 38,
+  notes: ['Cooldown reduction: no more 1s limit per ability. It keeps being offered until your slowest timed ability is at 1s (and comes back if you pick up a slower one)',
+    'Each element now has a clear identity (shown in the Elements tab and here)',
     'Fire: Wildfire and Contagion spread burns; Phoenix moved to Lightning as Resurrection',
     'Lightning: Resurrection, Wings of Light, and +3% move speed per Lightning weapon',
     'Ice: Ice Prison traps crowds with a ring of ice',
@@ -3498,7 +3502,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)

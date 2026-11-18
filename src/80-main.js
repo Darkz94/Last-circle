@@ -74,7 +74,7 @@ function loop(now) {
 }
 function TEST_API() {
   return { get S() { return S; }, get pendingRun() { return pendingRun; }, set pendingRun(v) { pendingRun = v; }, tot, UI, AB, ABIL, RELICS, STAT, TYPES, CODEX,
-    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
+    rollRun, newRun, resumeRun, loadSave, saveRun, step, draw, act, keys, makeWeapon, addWeapon, recalc, triggerEvent, nextMenu, startWave, spawnEnemy, togglePause, renderShop, otStart, freeze, choosePerk, abilityCd, cdrMax, cdrUseful, weaponDmg, takeRelic, rollLevelCards, renderLevelUp,
     SYN, BOSSES, spawnBoss, bossKeyFor, syn, priceOf, upCost, evoCost, canEvolve, canFuse, lvRerollPrice, E, sv, renderShop, renderStart, renderPause, musicMode, updateHud, nearest, setGold(v) { GOLD_RATE = v; }, setReroll(f) { RRF = f; } };
 }
 // beta: the whole Codex is unlocked so everything can be read and tested (the beta keeps its own save)

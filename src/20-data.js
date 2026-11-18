@@ -59,7 +59,7 @@ const PRIM = [
   { k: 'range',   v: 10,  t: v => `+${v}% attack range` },
   { k: 'pickup',  v: 30,  t: v => `+${v}% pickup range` },
   { k: 'area',    v: 10,  t: v => `+${v}% ability area (max +${AREA_CAP}%)` },
-  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (never below 1s)` },
+  { k: 'cdr',     v: 8,   t: v => `−${v}% ability cooldowns (offered until your slowest is at 1s)` },
 ];
 
 // ---- tuning numbers
